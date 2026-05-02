@@ -1,8 +1,15 @@
-import { TFile } from 'obsidian';
+import { TFile, setIcon } from 'obsidian';
 
+import { openPdfAbsolutePathInObsidianOrExternal } from './helpers';
 import { t } from './lang/helpers';
 import ReferenceList from './main';
 import clip from 'text-clipper';
+
+/** Extrait un numéro de page typique du locator Pandoc (ex. `p78`, `pp. 12-14`). */
+function pageNumberFromLocator(loc: string): number | null {
+  const m = loc.trim().match(/\d+/);
+  return m ? parseInt(m[0], 10) : null;
+}
 
 export class TooltipManager {
   plugin: ReferenceList;
@@ -15,7 +22,7 @@ export class TooltipManager {
     plugin.register(() => this.hideTooltip());
   }
 
-  showTooltip(el: HTMLSpanElement) {
+  showTooltip(el: HTMLElement) {
     if (this.tooltip) {
       this.hideTooltip();
     }
@@ -23,7 +30,7 @@ export class TooltipManager {
     if (!el.dataset.source) return;
 
     const file = app.vault.getAbstractFileByPath(el.dataset.source);
-    if (!file && !(file instanceof TFile)) {
+    if (!file || !(file instanceof TFile)) {
       return;
     }
 
@@ -79,6 +86,7 @@ export class TooltipManager {
 
     if (content) {
       tooltip.append(content);
+      this.appendZoteroQuickActions(tooltip, el, file.path);
     } else {
       tooltip.addClass('is-missing');
       tooltip.createEl('em', {
@@ -124,6 +132,66 @@ export class TooltipManager {
       }
     };
     el.win.addEventListener('scroll', this.boundScroll, { capture: true });
+  }
+
+  /** Boutons Zotero / PDF local (page) sous l’aperçu CSL — uniquement si source API. */
+  private appendZoteroQuickActions(
+    tooltip: HTMLElement,
+    el: HTMLElement,
+    sourcePath: string
+  ) {
+    const citekeyRaw = el.dataset.citekey;
+    if (!citekeyRaw) return;
+    const primaryKey = citekeyRaw.split('|')[0];
+    const zLink = this.plugin.bibManager.zCitekeyToLinks.get(primaryKey);
+    const pdfPaths =
+      this.plugin.bibManager.zCitekeyToPDFLinks.get(primaryKey) ?? [];
+    const loc = el.dataset.citeLocator;
+    const page = loc ? pageNumberFromLocator(loc) : null;
+
+    if (!zLink && !pdfPaths.length) return;
+
+    const bar = tooltip.createDiv({ cls: 'pwc-tooltip-cite-actions' });
+    if (zLink) {
+      bar.createDiv(
+        {
+          cls: 'pwc-tooltip-cite-btn clickable-icon',
+          attr: { 'aria-label': t('Open in Zotero') },
+        },
+        (div) => {
+          setIcon(div, 'lucide-external-link');
+          div.onClickEvent(() => {
+            activeWindow.open(zLink, '_blank');
+            this.hideTooltip();
+          });
+        }
+      );
+    }
+    if (pdfPaths.length) {
+      const absPath = pdfPaths[0];
+      bar.createDiv(
+        {
+          cls: 'pwc-tooltip-cite-btn clickable-icon',
+          attr: {
+            'aria-label':
+              page != null
+                ? t('Open PDF at cited page')
+                : t('Open linked PDF'),
+          },
+        },
+        (div) => {
+          setIcon(div, 'lucide-file-text');
+          div.onClickEvent(() => {
+            openPdfAbsolutePathInObsidianOrExternal(
+              absPath,
+              sourcePath,
+              page
+            );
+            this.hideTooltip();
+          });
+        }
+      );
+    }
   }
 
   boundScroll: () => void;

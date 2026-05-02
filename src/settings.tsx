@@ -20,7 +20,7 @@ import {
 } from './settings/select.helpers';
 import { cslListRaw } from './bib/cslList';
 import { langListRaw } from './bib/cslLangList';
-import { ZoteroPullSetting } from './settings/ZoteroPullSetting';
+import { ZoteroApiSetting } from './settings/ZoteroApiSetting';
 
 export const DEFAULT_SETTINGS: ReferenceListSettings = {
   tooltipDelay: 400,
@@ -28,6 +28,7 @@ export const DEFAULT_SETTINGS: ReferenceListSettings = {
   renderCitations: true,
   renderCitationsReadingMode: true,
   renderLinkCitations: true,
+  zoteroApiLibraryType: 'user',
 };
 
 export interface ZoteroGroup {
@@ -54,6 +55,14 @@ export interface ReferenceListSettings {
   pullFromZotero?: boolean;
   zoteroPort?: string;
   zoteroGroups: ZoteroGroup[];
+
+  pullFromZoteroApi?: boolean;
+  zoteroApiKey?: string;
+  zoteroApiUserId?: number;
+  zoteroApiLibraryType?: 'user' | 'group';
+  zoteroApiGroupId?: number;
+  /** Vault-relative path for optional BibTeX export (Pandoc / LaTeX / Typst) */
+  zoteroApiBibExportPath?: string;
 }
 
 export class ReferenceListSettingsTab extends PluginSettingTab {
@@ -125,7 +134,7 @@ export class ReferenceListSettingsTab extends PluginSettingTab {
       });
 
     ReactDOM.render(
-      <ZoteroPullSetting plugin={this.plugin} />,
+      <ZoteroApiSetting plugin={this.plugin} />,
       containerEl.createDiv('setting-item pwc-setting-item-wrapper')
     );
 

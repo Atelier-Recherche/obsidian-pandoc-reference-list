@@ -22,6 +22,7 @@ import {
   Segment,
   SegmentType,
   getCitationSegments,
+  getSegmentData,
 } from './parser/parser';
 import { BibManager, FileCache } from './bib/bibManager';
 import equal from 'fast-deep-equal';
@@ -29,22 +30,37 @@ import { TooltipManager } from './tooltip';
 
 const ignoreListRegEx = /code|math|templater|hashtag/;
 
+function citationHoverAttrs(
+  citekey: string,
+  sourceFile: string | undefined,
+  locator?: string
+): Record<string, string> {
+  const attr: Record<string, string> = {
+    'data-citekey': citekey,
+    'data-source': sourceFile || '',
+  };
+  if (locator?.trim()) attr['data-cite-locator'] = locator.trim();
+  return attr;
+}
+
 const citeMark = (
   citekey: string,
   sourceFile: string | undefined,
   isResolved: boolean,
   isUnresolved: boolean,
-  noteIndex?: string
+  noteIndex?: string,
+  locator?: string
 ) => {
   const cls = ['cm-pandoc-citation', 'pandoc-citation'];
 
   if (isResolved) cls.push('is-resolved');
   if (isUnresolved) cls.push('is-unresolved');
 
-  const attr: Record<string, string> = {
-    'data-citekey': citekey,
-    'data-source': sourceFile || '',
-  };
+  const attr: Record<string, string> = citationHoverAttrs(
+    citekey,
+    sourceFile,
+    locator
+  );
 
   if (noteIndex) attr.noteIndex = noteIndex;
 
@@ -60,9 +76,13 @@ const citeMarkFormatting = (type: string) => {
   });
 };
 
-const citeMarkExtra = (type: string) => {
+const citeMarkExtra = (
+  type: string,
+  dataAttrs?: Record<string, string>
+) => {
   return Decoration.mark({
     class: `cm-pandoc-citation-extra ${type}`,
+    attributes: dataAttrs,
   });
 };
 
@@ -94,6 +114,11 @@ class CiteWidget extends WidgetType {
 
     if (this.cite.note) {
       attr['data-note-index'] = this.cite.noteIndex.toString();
+    }
+
+    const loc0 = this.cite.citations[0]?.locator;
+    if (typeof loc0 === 'string' && loc0.trim()) {
+      attr['data-cite-locator'] = loc0.trim();
     }
 
     return createSpan(
@@ -195,6 +220,8 @@ export const citeKeyPlugin = ViewPlugin.fromClass(
 
         for (const match of segments) {
           if (!tree) tree = syntaxTree(view.state);
+          const segMeta = getSegmentData(match);
+          const citeLoc = segMeta.locator?.trim();
           const rendered = citekeyCache?.citations.find(
             (c) =>
               !matched.has(c) &&
@@ -273,7 +300,8 @@ export const citeKeyPlugin = ViewPlugin.fromClass(
                     obsView?.file.path,
                     isResolved,
                     isUnresolved,
-                    rendered?.note ? rendered.noteIndex.toString() : undefined
+                    rendered?.note ? rendered.noteIndex.toString() : undefined,
+                    citeLoc
                   )
                 );
                 continue;
@@ -302,11 +330,21 @@ export const citeKeyPlugin = ViewPlugin.fromClass(
               case SegmentType.suppressor:
               case SegmentType.prefix:
               case SegmentType.suffix:
-              case SegmentType.locator:
-              case SegmentType.locatorLabel:
-              case SegmentType.locatorSuffix:
                 b.add(start, end, citeMarkExtra(part.type));
                 continue;
+              case SegmentType.locator:
+              case SegmentType.locatorLabel:
+              case SegmentType.locatorSuffix: {
+                const h = segMeta.key
+                  ? citationHoverAttrs(
+                      segMeta.key,
+                      obsView?.file.path,
+                      citeLoc
+                    )
+                  : undefined;
+                b.add(start, end, citeMarkExtra(part.type, h));
+                continue;
+              }
             }
           }
         }

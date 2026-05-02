@@ -169,16 +169,8 @@ export class CiteSuggest extends EditorSuggest<
     this.close();
   }
 
-  isRefreshing: boolean = false;
-  async refreshZBib() {
-    if (this.isRefreshing) return;
-    this.isRefreshing = true;
-    await this.plugin.bibManager.refreshGlobalZBib();
-    this.isRefreshing = false;
-  }
-
   onTrigger(cursor: EditorPosition, editor: Editor): EditorSuggestTriggerInfo {
-    const { enableCiteKeyCompletion, pullFromZotero } = this.plugin.settings;
+    const { enableCiteKeyCompletion } = this.plugin.settings;
     if (!enableCiteKeyCompletion) return null;
 
     const { lastSelect } = this;
@@ -195,10 +187,6 @@ export class CiteSuggest extends EditorSuggest<
 
     if (!match) return null;
     this.lastSelect = null;
-
-    if (!this.context && pullFromZotero) {
-      this.refreshZBib();
-    }
 
     const triggerIndex = match.index + match[1].length;
     const startPos = {

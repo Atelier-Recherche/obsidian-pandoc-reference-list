@@ -8,7 +8,6 @@ import {
   getBibPath,
   getCSLLocale,
   getCSLStyle,
-  getItemJSONFromCiteKeys,
   getZBib,
   refreshZBib,
 } from './helpers';
@@ -16,6 +15,7 @@ import {
   PromiseCapability,
   copyElToClipboard,
   getVaultRoot,
+  openPdfAbsolutePathInObsidianOrExternal,
 } from 'src/helpers';
 import {
   RenderedCitation,
@@ -29,6 +29,8 @@ import { setCiteKeyCache } from 'src/editorExtension';
 import equal from 'fast-deep-equal';
 import { t } from 'src/lang/helpers';
 import { getPath, getFs, isDesktop } from 'src/platformAdapter';
+import { getLinkedFilePathFromAttachmentData } from 'src/zoteroApi/attachmentLinks';
+import { zoteroItemToCsl } from 'src/zoteroApi/zoteroToCsl';
 
 const fuseSettings = {
   includeMatches: true,
@@ -192,8 +194,8 @@ export class BibManager {
     this.fileCache.clear();
     if (clearCache) this.bibCache.clear();
 
-    if (this.plugin.settings.pullFromZotero) {
-      await this.loadGlobalZBib(false);
+    if (this.plugin.settings.pullFromZoteroApi) {
+      await this.loadGlobalZoteroApi();
     } else {
       await this.loadGlobalBibFile(true);
     }
@@ -362,6 +364,101 @@ export class BibManager {
   async loadAndRefreshGlobalZBib() {
     await this.loadGlobalZBib(true);
     await this.refreshGlobalZBib();
+  }
+
+  async loadGlobalZoteroApi() {
+    const sync = this.plugin.zoteroSync;
+    if (!sync) return;
+
+    const snap = await sync.loadSnapshot();
+    const settings = this.plugin.settings;
+    const groupID =
+      settings.zoteroApiLibraryType === 'group'
+        ? settings.zoteroApiGroupId ?? undefined
+        : undefined;
+
+    const bib: PartialCSLEntry[] = [];
+    this.zCitekeyToLinks.clear();
+    this.zCitekeyToPDFLinks.clear();
+
+    const libId =
+      settings.zoteroApiLibraryType === 'group'
+        ? settings.zoteroApiGroupId
+        : settings.zoteroApiUserId;
+
+    this.bibCache = new Map();
+
+    for (const st of Object.values(snap.items)) {
+      const csl = zoteroItemToCsl(st, groupID);
+      if (csl) {
+        bib.push(csl);
+        this.bibCache.set(csl.id, csl);
+        if (st.key !== csl.id) this.bibCache.set(st.key, csl);
+      }
+      if (libId != null) {
+        const resolvedCk = csl?.id ?? st.key;
+        const link = `zotero://select/items/@${libId}_${st.key}`;
+        this.zCitekeyToLinks.set(resolvedCk, link);
+        if (csl && st.key !== csl.id) this.zCitekeyToLinks.set(st.key, link);
+      }
+    }
+
+    for (const st of Object.values(snap.items)) {
+      const d = st.data as Record<string, unknown>;
+      if (String(d.itemType ?? '') !== 'attachment') continue;
+      const parentKey =
+        typeof d.parentItem === 'string' ? d.parentItem.trim() : '';
+      if (!parentKey) continue;
+
+      const mime = String(d.contentType ?? '');
+      const fn = String(d.filename ?? '');
+      const isPdf =
+        mime.toLowerCase().includes('pdf') || /\.pdf(\b|$)/i.test(fn);
+      if (!isPdf) continue;
+
+      const local = getLinkedFilePathFromAttachmentData(d);
+      if (!local) continue;
+
+      const parentSt = snap.items[parentKey];
+      if (!parentSt) continue;
+
+      const csl = zoteroItemToCsl(parentSt, groupID);
+      if (!csl?.id) continue;
+
+      const pushForKey = (k: string) => {
+        const arr = this.zCitekeyToPDFLinks.get(k) ?? [];
+        if (!arr.includes(local)) arr.push(local);
+        this.zCitekeyToPDFLinks.set(k, arr);
+      };
+      pushForKey(csl.id);
+      if (parentSt.key && parentSt.key !== csl.id) pushForKey(parentSt.key);
+    }
+
+    this.setFuse(bib);
+
+    const style =
+      settings.cslStylePath ||
+      settings.cslStyleURL ||
+      'https://raw.githubusercontent.com/citation-style-language/styles/master/apa.csl';
+    const lang = settings.cslLang || 'en-US';
+
+    await this.getLangAndStyle(lang, {
+      id: style,
+      explicitPath: settings.cslStylePath,
+    });
+    if (!this.styleCache.has(style)) return;
+
+    try {
+      this.engine = this.buildEngine(
+        lang,
+        this.langCache,
+        style,
+        this.styleCache,
+        this.bibCache
+      );
+    } catch (e) {
+      console.error(e);
+    }
   }
 
   async loadGlobalZBib(fromCache?: boolean) {
@@ -734,9 +831,6 @@ export class BibManager {
       : null;
 
     if (parsed) {
-      if (this.plugin.settings.pullFromZotero && !settings?.bibliography) {
-        await this.getZLinksForKeys(resolvedKeys);
-      }
       parsed = this.prepBibHTML(parsed, file);
     }
 
@@ -755,56 +849,6 @@ export class BibManager {
     this.dispatchResult(file, result);
 
     return result.bib;
-  }
-
-  async getZLinksForKeys(citekeys: Set<string>) {
-    const queries: Record<number, string[]> = {};
-
-    citekeys.forEach((key) => {
-      if (!this.zCitekeyToLinks.has(key)) {
-        if (!this.bibCache.has(key)) return;
-        const item = this.bibCache.get(key);
-        const id = item.groupID;
-        if (id === undefined) return;
-        if (!queries[id]) {
-          queries[id] = [];
-        }
-        queries[id].push(key);
-      }
-    });
-
-    for (const id of Object.keys(queries)) {
-      const groupId = Number(id);
-      try {
-        const items = await getItemJSONFromCiteKeys(
-          this.plugin.settings.zoteroPort,
-          queries[groupId],
-          groupId
-        );
-        if (items?.length) {
-          for (const item of items) {
-            const key = item.citekey || item.citationKey;
-            const link = item.select;
-            if (key && link) {
-              this.zCitekeyToLinks.set(key, link);
-              if (item.attachments?.length) {
-                const attLinks: string[] = [];
-                for (const att of item.attachments) {
-                  if (/\.pdf$/.test(att.path)) {
-                    attLinks.push(att.path);
-                  }
-                }
-                if (attLinks.length) {
-                  this.zCitekeyToPDFLinks.set(key, attLinks);
-                }
-              }
-            }
-          }
-        }
-      } catch {
-        //
-      }
-    }
   }
 
   prepBibHTML(parsed: HTMLElement, file: TFile, inTooltip?: boolean) {
@@ -830,7 +874,7 @@ export class BibManager {
       e.parentElement.insertBefore(div, e);
       div.append(e);
 
-      if (e.dataset.citekey) {
+      if (e.dataset.citekey && !inTooltip) {
         const zLink = this.zCitekeyToLinks.get(e.dataset.citekey);
         const zPDFLinks = this.zCitekeyToPDFLinks.get(e.dataset.citekey);
         let linkText = '@' + e.dataset.citekey;
@@ -874,7 +918,11 @@ export class BibManager {
                 setIcon(div, 'lucide-file-text');
                 div.setAttr('aria-label', getPath().parse(link).base);
                 div.onClickEvent(() => {
-                  activeWindow.open(`file://${encodeURI(link)}`, '_blank');
+                  openPdfAbsolutePathInObsidianOrExternal(
+                    link,
+                    file.path,
+                    undefined
+                  );
                 });
               });
             });

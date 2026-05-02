@@ -2,6 +2,7 @@ import {
   Events,
   MarkdownView,
   Menu,
+  Notice,
   Plugin,
   WorkspaceLeaf,
   debounce,
@@ -23,11 +24,13 @@ import {
 } from './settings';
 import { TooltipManager } from './tooltip';
 import { ReferenceListView, viewType } from './view';
+import { ZoteroLibraryView, zoteroLibraryViewType } from './zoteroLibraryView';
+import { ZoteroSyncService, noticeSyncResult } from './zoteroApi/zoteroSync';
+import { writeBibtexExportToVault } from './zoteroApi/zoteroToBibtex';
 import { PromiseCapability, getVaultRoot } from './helpers';
 import { getPath } from './platformAdapter';
 import { BibManager } from './bib/bibManager';
 import { CiteSuggest } from './citeSuggest/citeSuggest';
-import { isZoteroRunning } from './bib/helpers';
 
 export default class ReferenceList extends Plugin {
   settings: ReferenceListSettings;
@@ -35,6 +38,7 @@ export default class ReferenceList extends Plugin {
   tooltipManager: TooltipManager;
   cacheDir: string;
   bibManager: BibManager;
+  zoteroSync: ZoteroSyncService;
   _initPromise: PromiseCapability<void>;
 
   get initPromise() {
@@ -53,16 +57,29 @@ export default class ReferenceList extends Plugin {
       viewType,
       (leaf: WorkspaceLeaf) => new ReferenceListView(leaf, this)
     );
+    this.registerView(
+      zoteroLibraryViewType,
+      (leaf: WorkspaceLeaf) => new ZoteroLibraryView(leaf, this)
+    );
 
+    this.zoteroSync = new ZoteroSyncService(this);
     this.cacheDir = getPath().join(getVaultRoot(), '.pandoc');
     this.emitter = new Events();
     this.bibManager = new BibManager(this);
     this.initPromise.promise
-      .then(() => {
-        if (this.settings.pullFromZotero) {
-          return this.bibManager.loadAndRefreshGlobalZBib();
+      .then(async () => {
+        if (this.settings.pullFromZoteroApi) {
+          await this.bibManager.loadGlobalZoteroApi();
+          const snap = await this.zoteroSync.loadSnapshot();
+          const empty =
+            !Object.keys(snap.items).length && !!this.settings.zoteroApiKey;
+          if (empty) {
+            const r = await this.zoteroSync.sync();
+            noticeSyncResult(r, t);
+            await this.bibManager.loadGlobalZoteroApi();
+          }
         } else {
-          return this.bibManager.loadGlobalBibFile();
+          await this.bibManager.loadGlobalBibFile();
         }
       })
       .finally(() => this.bibManager.initPromise.resolve());
@@ -86,6 +103,59 @@ export default class ReferenceList extends Plugin {
       name: t('Show reference list'),
       callback: async () => {
         this.initLeaf();
+      },
+    });
+
+    this.addCommand({
+      id: 'zotero-library-sync',
+      name: t('Sync Zotero library (Web API)'),
+      callback: async () => {
+        if (!this.settings.pullFromZoteroApi) {
+          new Notice(t('Enable “Use Zotero Web API” in plugin settings first'));
+          return;
+        }
+        const r = await this.zoteroSync.sync();
+        noticeSyncResult(r, t);
+        this.bibManager.reinit(true);
+        await this.bibManager.initPromise.promise;
+        this.processReferences();
+      },
+    });
+
+    this.addCommand({
+      id: 'zotero-library-panel',
+      name: t('Open Zotero library panel'),
+      callback: async () => {
+        await this.initZoteroLibraryLeaf();
+      },
+    });
+
+    this.addCommand({
+      id: 'zotero-export-bib',
+      name: t('Export Zotero API library to BibTeX'),
+      callback: async () => {
+        if (!this.settings.pullFromZoteroApi) {
+          new Notice(t('Enable “Use Zotero Web API” in plugin settings first'));
+          return;
+        }
+        const p = this.settings.zoteroApiBibExportPath?.trim();
+        if (!p) {
+          new Notice(t('Set the BibTeX path in Zotero Web API settings'));
+          return;
+        }
+        const snap = await this.zoteroSync.loadSnapshot();
+        const res = await writeBibtexExportToVault(this.app, snap, p);
+        if (res.ok) {
+          new Notice(
+            `${t('BibTeX export saved')} (${res.entryCount ?? 0} ${t(
+              'entries'
+            )}) → ${res.path}`
+          );
+        } else if (res.error === 'need_bib_extension') {
+          new Notice(t('Path must end with .bib'));
+        } else {
+          new Notice(`${t('Export failed')}: ${res.error ?? ''}`);
+        }
       },
     });
 
@@ -154,6 +224,9 @@ export default class ReferenceList extends Plugin {
     this.app.workspace
       .getLeavesOfType(viewType)
       .forEach((leaf) => leaf.detach());
+    this.app.workspace
+      .getLeavesOfType(zoteroLibraryViewType)
+      .forEach((leaf) => leaf.detach());
     this.bibManager.destroy();
   }
 
@@ -212,6 +285,11 @@ export default class ReferenceList extends Plugin {
                     return;
                   }
                 }
+              }
+
+              if (this.settings.pullFromZoteroApi) {
+                const r = await this.zoteroSync.sync();
+                noticeSyncResult(r, t);
               }
 
               this.bibManager.reinit(true);
@@ -277,6 +355,25 @@ export default class ReferenceList extends Plugin {
     }
   }
 
+  async initZoteroLibraryLeaf() {
+    if (!this.settings.pullFromZoteroApi) {
+      new Notice(t('Enable “Use Zotero Web API” in plugin settings first'));
+      return;
+    }
+    const leaves = this.app.workspace.getLeavesOfType(zoteroLibraryViewType);
+    if (leaves?.length) {
+      this.app.workspace.revealLeaf(leaves[0]);
+      return;
+    }
+    await this.app.workspace.getRightLeaf(false).setViewState({
+      type: zoteroLibraryViewType,
+    });
+    const newLeaves = this.app.workspace.getLeavesOfType(zoteroLibraryViewType);
+    if (newLeaves?.length) {
+      this.app.workspace.revealLeaf(newLeaves[0]);
+    }
+  }
+
   revealLeaf() {
     const leaves = this.app.workspace.getLeavesOfType(viewType);
     if (!leaves?.length) return;
@@ -318,7 +415,7 @@ export default class ReferenceList extends Plugin {
   processReferences = async () => {
     const { settings } = this;
     const view = this.view;
-    if (!settings.pathToBibliography && !settings.pullFromZotero) {
+    if (!settings.pathToBibliography && !settings.pullFromZoteroApi) {
       return view?.setMessage(
         t(
           'Please provide the path to your pandoc compatible bibliography file in the Pandoc Reference List plugin settings.'
@@ -340,12 +437,11 @@ export default class ReferenceList extends Plugin {
 
         if (
           !bib &&
-          cache?.source === this.bibManager &&
-          settings.pullFromZotero &&
-          !(await isZoteroRunning(settings.zoteroPort)) &&
-          this.bibManager.fileCache.get(activeView.file)?.keys.size
+          settings.pullFromZoteroApi &&
+          this.bibManager.bibCache.size === 0 &&
+          cache?.keys.size
         ) {
-          currentView?.setMessage(t('Cannot connect to Zotero'));
+          currentView?.setMessage(t('Zotero library has no items — run Sync'));
         } else {
           currentView?.setViewContent(bib);
         }

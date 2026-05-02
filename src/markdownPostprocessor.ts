@@ -75,6 +75,11 @@ export function processCiteKeys(plugin: ReferenceList) {
             attr['data-note-index'] = rendered.noteIndex.toString();
           }
 
+          const loc0 = rendered.citations[0]?.locator;
+          if (typeof loc0 === 'string' && loc0.trim()) {
+            attr['data-cite-locator'] = loc0.trim();
+          }
+
           pos = match[match.length - 1].to;
 
           frag.appendText(preCite);
