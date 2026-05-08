@@ -5,7 +5,8 @@ Affiche dans le panneau latéral une liste de références formatée pour chaque
 ## Installation via BRAT (1 clic)
 
 1. Installer BRAT : [lien obsidian](https://obsidian.md/plugins?search=BRAT#)
-2. Installer ce plugin avec BRAT avec l'url du depot  : https://github.com/Atelier-Recherche/pandocit
+2. Installer ce plugin avec BRAT (mettre le lient du depot github) https://github.com/Atelier-Recherche/pandocit
+
 ## Fonctionnement
 
 - Le plugin utilise **Pandoc 3.9 en WebAssembly** (`pandoc.wasm`) pour convertir les fichiers de bibliographie (BibTeX, etc.) en CSL JSON. **Aucune installation de Pandoc sur le système n’est nécessaire.**
