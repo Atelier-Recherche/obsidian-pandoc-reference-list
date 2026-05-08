@@ -5,7 +5,7 @@ Affiche dans le panneau latéral une liste de références formatée pour chaque
 ## Installation via BRAT (1 clic)
 
 1. Installer BRAT : [lien obsidian](https://obsidian.md/plugins?search=BRAT#)
-2. Installer ce plugin avec BRAT (depuis le dépôt GitHub) : [Atelier-Recherche/obsidian-pandoc-reference-list](https://github.com/Atelier-Recherche/obsidian-pandoc-reference-list)
+2. Installer ce plugin avec BRAT : [pandocit](obsidian://brat?plugin=Atelier-Recherche/pandocit)
 
 ## Fonctionnement
 
