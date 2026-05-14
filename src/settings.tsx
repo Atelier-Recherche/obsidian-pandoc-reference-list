@@ -92,6 +92,28 @@ export class ReferenceListSettingsTab extends PluginSettingTab {
     this.plugin = plugin;
   }
 
+  private async mountWasmDownloadSetting(host: HTMLElement): Promise<void> {
+    host.empty();
+    const wasmInstalled = await isPandocWasmInstalled(this.plugin);
+    new Setting(host)
+      .setName(t('Download Pandoc WASM'))
+      .setDesc(
+        `${t(
+          'Installs pandoc.wasm from Pandoc 3.9 next to main.js (official release ZIP). Reload Obsidian after install. Download works on desktop and mobile (including Android).'
+        )}${wasmInstalled ? ` (${t('Installed')})` : ''}`
+      )
+      .addButton((btn) =>
+        btn
+          .setButtonText(t('Download WASM'))
+          .setCta()
+          .setTooltip(t('Download WASM'))
+          .onClick(async () => {
+            await downloadAndInstallPandocWasm(this.plugin);
+            await this.mountWasmDownloadSetting(host);
+          })
+      );
+  }
+
   display(): void {
     const { containerEl } = this;
 
@@ -116,25 +138,8 @@ export class ReferenceListSettingsTab extends PluginSettingTab {
           });
       });
 
-    const wasmInstalled = isPandocWasmInstalled(this.plugin);
-    new Setting(containerEl)
-      .setName(t('Download Pandoc WASM'))
-      .setDesc(
-        `${t(
-          'Installs pandoc.wasm from Pandoc 3.9 next to main.js (official release ZIP). Desktop only — reload Obsidian after install.'
-        )}${wasmInstalled ? ` (${t('Installed')})` : ''}`
-      )
-      .addButton((btn) =>
-        btn
-          .setButtonText(t('Download WASM'))
-          .setCta()
-          .setTooltip(t('Download WASM'))
-          .setDisabled(!Platform.isDesktop)
-          .onClick(async () => {
-            await downloadAndInstallPandocWasm(this.plugin);
-            this.display();
-          })
-      );
+    const wasmHost = containerEl.createDiv();
+    void this.mountWasmDownloadSetting(wasmHost);
 
     new Setting(containerEl)
       .setName(t('Path to bibliography file'))

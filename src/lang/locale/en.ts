@@ -5,8 +5,8 @@ export default {
   'Display language for this plugin (settings, notices, side panel).':
     'Display language for this plugin (settings, notices, side panel).',
   'Download Pandoc WASM': 'Download Pandoc WASM',
-  'Installs pandoc.wasm from Pandoc 3.9 next to main.js (official release ZIP). Desktop only — reload Obsidian after install.':
-    'Installs pandoc.wasm from Pandoc 3.9 next to main.js (official release ZIP). Desktop only — reload Obsidian after install.',
+  'Installs pandoc.wasm from Pandoc 3.9 next to main.js (official release ZIP). Reload Obsidian after install. Download works on desktop and mobile (including Android).':
+    'Installs pandoc.wasm from Pandoc 3.9 next to main.js (official release ZIP). Reload Obsidian after install. Download works on desktop and mobile (including Android).',
   'Download WASM': 'Download WASM',
   'Downloading Pandoc WASM…': 'Downloading Pandoc WASM…',
   'pandoc.wasm is already in the plugin folder.':
@@ -14,8 +14,6 @@ export default {
   'Pandoc WASM installed. Reload Obsidian to apply.':
     'Pandoc WASM installed. Reload Obsidian to apply.',
   'Pandoc WASM download failed.': 'Pandoc WASM download failed.',
-  'Pandoc WASM can only be installed on desktop.':
-    'Pandoc WASM can only be installed on desktop.',
   Installed: 'Installed',
 
   // src/settings.ts

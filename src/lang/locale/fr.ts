@@ -5,8 +5,8 @@ export default {
   'Display language for this plugin (settings, notices, side panel).':
     'Langue d’affichage de ce plugin (réglages, notifications, panneau latéral).',
   'Download Pandoc WASM': 'Télécharger Pandoc WASM',
-  'Installs pandoc.wasm from Pandoc 3.9 next to main.js (official release ZIP). Desktop only — reload Obsidian after install.':
-    'Installe pandoc.wasm (Pandoc 3.9) à côté de main.js (archive officielle). Bureau uniquement — recharger Obsidian après installation.',
+  'Installs pandoc.wasm from Pandoc 3.9 next to main.js (official release ZIP). Reload Obsidian after install. Download works on desktop and mobile (including Android).':
+    'Installe pandoc.wasm (Pandoc 3.9) à côté de main.js (archive officielle). Rechargez Obsidian après installation. Le téléchargement fonctionne sur bureau et mobile (dont Android).',
   'Download WASM': 'Télécharger WASM',
   'Downloading Pandoc WASM…': 'Téléchargement de Pandoc WASM…',
   'pandoc.wasm is already in the plugin folder.':
@@ -14,8 +14,6 @@ export default {
   'Pandoc WASM installed. Reload Obsidian to apply.':
     'Pandoc WASM installé. Rechargez Obsidian pour l’utiliser.',
   'Pandoc WASM download failed.': 'Échec du téléchargement de Pandoc WASM.',
-  'Pandoc WASM can only be installed on desktop.':
-    'Pandoc WASM ne peut être installé que sur la version bureau.',
   Installed: 'Installé',
 
   'Path to bibliography file': 'Chemin du fichier de bibliographie',

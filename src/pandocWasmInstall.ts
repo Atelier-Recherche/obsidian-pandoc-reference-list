@@ -1,11 +1,5 @@
-import {
-  FileSystemAdapter,
-  Notice,
-  Platform,
-  requestUrl,
-} from 'obsidian';
+import { Notice, normalizePath, requestUrl } from 'obsidian';
 import { unzipSync } from 'fflate';
-import { join } from 'path';
 
 import type ReferenceList from './main';
 import { t } from './lang/helpers';
@@ -13,53 +7,59 @@ import { t } from './lang/helpers';
 export const PANDOC_WASM_ZIP_URL =
   'https://github.com/jgm/pandoc/releases/download/3.9.0.2/pandoc.wasm.zip';
 
-export function getPluginFolder(plugin: ReferenceList): string | null {
+/** Chemin relatif au coffre : dossier du plugin (ex. `.obsidian/plugins/<id>`). */
+export function getPluginFolder(plugin: ReferenceList): string {
+  return normalizePath(`.obsidian/plugins/${plugin.manifest.id}`);
+}
+
+/** Chemin relatif au coffre : `pandoc.wasm` à côté de `main.js`. */
+export function getPandocWasmPath(plugin: ReferenceList): string {
+  return normalizePath(`${getPluginFolder(plugin)}/pandoc.wasm`);
+}
+
+async function ensureParentDirs(
+  plugin: ReferenceList,
+  normalizedFilePath: string
+): Promise<void> {
   const adapter = plugin.app.vault.adapter;
-  if (!(adapter instanceof FileSystemAdapter)) return null;
-  const base = adapter.getBasePath();
-  return join(base, '.obsidian', 'plugins', plugin.manifest.id);
+  const norm = normalizePath(normalizedFilePath);
+  const i = norm.lastIndexOf('/');
+  if (i <= 0) return;
+  const dirPath = norm.slice(0, i);
+  const segments = dirPath.split('/').filter(Boolean);
+  let cur = '';
+  for (const seg of segments) {
+    cur = cur ? normalizePath(`${cur}/${seg}`) : seg;
+    if (!(await adapter.exists(cur))) {
+      await adapter.mkdir(cur);
+    }
+  }
 }
 
-export function getPandocWasmPath(plugin: ReferenceList): string | null {
-  const dir = getPluginFolder(plugin);
-  return dir ? join(dir, 'pandoc.wasm') : null;
-}
-
-export function isPandocWasmInstalled(plugin: ReferenceList): boolean {
+export async function isPandocWasmInstalled(
+  plugin: ReferenceList
+): Promise<boolean> {
   const p = getPandocWasmPath(plugin);
-  if (!p || !Platform.isDesktop) return false;
   try {
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const fs = require('fs') as typeof import('fs');
-    return fs.existsSync(p);
+    return await plugin.app.vault.adapter.exists(p);
   } catch {
     return false;
   }
 }
 
 /**
- * Télécharge l’archive officielle, extrait `pandoc.wasm` à côté de `main.js`.
+ * Télécharge l’archive officielle, extrait `pandoc.wasm` dans le dossier du plugin
+ * (via `vault.adapter`, compatible bureau et mobile dont Android).
  */
 export async function downloadAndInstallPandocWasm(
   plugin: ReferenceList,
   opts?: { force?: boolean }
 ): Promise<boolean> {
-  if (!Platform.isDesktop) {
-    new Notice(t('Pandoc WASM can only be installed on desktop.'));
-    return false;
-  }
-
+  const adapter = plugin.app.vault.adapter;
   const wasmPath = getPandocWasmPath(plugin);
-  const pluginDir = getPluginFolder(plugin);
-  if (!wasmPath || !pluginDir) {
-    new Notice(t('Pandoc WASM download failed.'));
-    return false;
-  }
 
   try {
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const fs = require('fs') as typeof import('fs');
-    if (fs.existsSync(wasmPath) && !opts?.force) {
+    if ((await adapter.exists(wasmPath)) && !opts?.force) {
       new Notice(t('pandoc.wasm is already in the plugin folder.'));
       return true;
     }
@@ -79,8 +79,15 @@ export async function downloadAndInstallPandocWasm(
       throw new Error('pandoc.wasm not found in zip');
     }
 
-    fs.mkdirSync(pluginDir, { recursive: true });
-    fs.writeFileSync(wasmPath, extracted[wasmKey]);
+    await ensureParentDirs(plugin, wasmPath);
+
+    const wasmBytes = extracted[wasmKey];
+    const buf = wasmBytes.buffer.slice(
+      wasmBytes.byteOffset,
+      wasmBytes.byteOffset + wasmBytes.byteLength
+    );
+
+    await adapter.writeBinary(wasmPath, buf);
 
     new Notice(t('Pandoc WASM installed. Reload Obsidian to apply.'));
     return true;
