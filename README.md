@@ -1,131 +1,102 @@
 <div align="center">
 
-<img src="readme-media/logo_pandocite.jpg" alt="PandoCit" width="140" />
+<table>
+  <tr>
+    <td><img src="readme-media/logo_pandocite.jpg" alt="PandoCit" width="140" /></td>
+    <td align="left">
+      <h1>PandoCit</h1>
+      <strong>Citations Pandoc dans Obsidian</strong><br />
+      <sub>Panneau latéral · bibliographie WASM · Zotero</sub>
+    </td>
+  </tr>
+</table>
 
-# PandoCit
+<a href="https://atelier.atechnologie.fr/" title="l'Atelier – EHESS"><img src="readme-media/logoasso.jpg" alt="l'Atelier" width="200" /></a>
 
-**Citations Pandoc dans Obsidian** — panneau latéral, bibliographie WASM et intégration Zotero.
+<p>
+  <a href="https://atelier.atechnologie.fr/"><img src="https://img.shields.io/badge/l'Atelier-🌐_Site-6d28d9?style=for-the-badge" alt="Site l'Atelier" /></a>
+  <a href="https://github.com/Atelier-Recherche/pandocit"><img src="https://img.shields.io/badge/Dépôt-📦_GitHub-181717?style=for-the-badge" alt="GitHub" /></a>
+  <a href="#-installation-via-brat"><img src="https://img.shields.io/badge/Installer-⚡_BRAT-7c3aed?style=for-the-badge" alt="BRAT" /></a>
+</p>
 
-<br />
-
-<a href="https://atelier.atechnologie.fr/" title="l'Atelier – Association de fabrication de livres et d'outils de recherche">
-  <img src="readme-media/logoasso.jpg" alt="l'Atelier" width="200" />
-</a>
-
-<br />
-
-<em>Développé par <a href="https://atelier.atechnologie.fr/">l'Atelier</a> — association de fabrication de livres et d'outils de recherche (EHESS)</em>
-
-<br /><br />
-
-**🌐 Langue / Language** — [Français](README.md) · [English](README.en.md)
+<p>
+  🇫🇷 <a href="README.md"><b>FR</b></a> · 🇬🇧 <a href="README.en.md">EN</a> · 🇩🇪 <a href="README.de.md">DE</a> · 🇪🇸 <a href="README.es.md">ES</a>
+</p>
 
 </div>
 
 ---
 
-## Aperçu
+## 👁️ Aperçu
 
-| Liste des références | Bibliothèque Zotero |
+| 📑 Références | 📚 Zotero |
 | :---: | :---: |
-| <img src="readme-media/screen1.jpg" alt="Panneau des références formatées" width="400" /> | <img src="readme-media/screen2.jpg" alt="Panneau bibliothèque Zotero" width="400" /> |
+| <img src="readme-media/screen1.jpg" alt="Panneau des références" width="400" /> | <img src="readme-media/screen2.jpg" alt="Bibliothèque Zotero" width="400" /> |
 
 ---
 
-## À propos
+## 📖 À propos
 
-Affiche dans le panneau latéral une liste de références formatée pour chaque clé de citation Pandoc (`[@clef]`) présente dans la note active.
+Affiche dans le panneau latéral une liste de références formatée pour chaque clé Pandoc (`[@clef]`) de la note active.
 
-## Installation via BRAT (1 clic)
+## ⚡ Installation via BRAT
 
-1. Installer **BRAT** : [Obsidian — BRAT](https://obsidian.md/plugins?search=BRAT#)
-2. Ajouter ce dépôt avec l’option *« Add Beta plugin »* :  
-   `https://github.com/Atelier-Recherche/pandocit`
+1. 🔌 Installer [**BRAT**](https://obsidian.md/plugins?search=BRAT#) dans Obsidian
+2. ➕ *Add Beta plugin* → `https://github.com/Atelier-Recherche/pandocit`
 
-> Nos plugins peuvent être en attente de validation sur le catalogue Obsidian ; BRAT permet de les tester dès maintenant. Voir aussi [l’Atelier](https://atelier.atechnologie.fr/).
+> ⏳ En attente de validation catalogue Obsidian — BRAT permet de tester dès maintenant · [l'Atelier](https://atelier.atechnologie.fr/)
 
-## Fonctionnement
+## 🔧 Fonctionnement
 
-- Le plugin utilise **Pandoc 3.9 en WebAssembly** (`pandoc.wasm`) pour convertir les fichiers de bibliographie (BibTeX, etc.) en CSL JSON. **Aucune installation de Pandoc sur le système n’est nécessaire.**
-- Compatible **Obsidian bureau** (Windows, macOS, Linux) **et mobile** (Android, iOS) : le même plugin fonctionne sur ordinateur, téléphone et tablette.
+- 🦀 **Pandoc 3.9 WASM** (`pandoc.wasm`) : BibTeX, etc. → CSL JSON — **sans Pandoc système**
+- 💻🖥️ **Bureau** (Win / macOS / Linux) et **mobile** (Android, iOS)
 
-## Configuration
-
-1. **Bibliographie**  
-   Indiquez le chemin vers votre fichier de bibliographie (compatible Pandoc : `.bib`, `.json` CSL, etc.).  
-   - Sur **bureau** : bouton de sélection ou chemin absolu / relatif au coffre.  
-   - Sur **mobile** : chemin **relatif au coffre** (ex. `refs/bibliographie.bib`). La boîte « ouvrir un fichier » n’est disponible que sur bureau.
-
-2. **Style de citation (CSL)** *(optionnel)*  
-   Liste intégrée ou fichier `.csl` (chemin ou URL), éventuellement surchargé par le frontmatter (`bibliography`, `csl`, `lang`, etc.).
-
-3. **Panneau des références**  
-   Palette de commandes : **« PandoCit : Show reference list »** (libellé selon la langue Obsidian).
-
-4. **Langue du plugin** *(optionnel)*  
-   Dans les réglages du plugin : langue des libellés (paramètres, notices, panneau latéral).
-
-## Zotero (optionnel)
-
-### Better BibTeX / flux local
-
-L’intégration **Better BibTeX** et le réseau local convient surtout à **Obsidian bureau**. Sur mobile, préférez une bibliographie fichier dans le coffre.
-
-### Zotero Web API
-
-Une fois activée dans les réglages :
-
-- **Clé API** et bibliothèque **personnelle** ou **de groupe** (ID numérique).
-- **Fusion de bibliothèques de groupe** : IDs de groupes + **Charger les groupes** ou **noms d’affichage personnalisés** (une ligne par ID + libellé).
-- **Synchronisation** bidirectionnelle (modèle Zotero API).
-- **Export BibTeX** optionnel vers un `.bib` dans le coffre (Pandoc, LaTeX, Typst).
-
-Les données sont stockées en JSON dans le dossier du plugin ; **aucun Node local Zotero** n’est requis — usage hors ligne possible après synchro.
-
-### Panneau « Bibliothèque Zotero »
-
-Commande : **« Open Zotero library panel »** / **« Ouvrir le panneau bibliothèque Zotero »**.
-
-Vue **arborescente** (collections, éléments sans classe, pièces isolées, corbeille). Filtre, édition des notices (notes HTML Zotero), pièces jointes **PDF / fichiers** sur la ligne.
-
-- **Sous-arbre replié par défaut** : icône chevron dans la bande des pièces jointes pour afficher / masquer les enfants.
-- **Badges de type** (livre, article…) selon la **langue d’interface du plugin**.
-
-Commande **« Sync Zotero library (Web API) »** pour actualiser après la première synchro.
-
-## Développement et build
-
-Prérequis : [Node.js](https://nodejs.org/) et [Yarn](https://yarnpkg.com/).
-
-```bash
-yarn install
-yarn build
-```
-
-Le script produit `main.js` à la racine. Pour tester dans un coffre Obsidian, copiez dans `.obsidian/plugins/<nom-du-plugin>/` :
-
-- `main.js`
-- `manifest.json`
-- `styles.css` (si présent)
-- `pandoc.wasm` (obligatoire pour les bibliographies non-JSON)
-
-## Limitations connues (WASM)
-
-Pandoc WASM tourne dans un bac à sable : pas d’accès réseau arbitraire ni d’exécution de commandes système. Ce plugin n’utilise que la conversion bibliographie → CSL JSON.
-
-## Ressources
+## ⚙️ Configuration
 
 | | |
 | --- | --- |
-| **l'Atelier** | [atelier.atechnologie.fr](https://atelier.atechnologie.fr/) |
-| **Dépôt** | [github.com/Atelier-Recherche/pandocit](https://github.com/Atelier-Recherche/pandocit) |
-| **Pandoc** | [pandoc.org](https://pandoc.org/) — [Releases / pandoc.wasm 3.9](https://github.com/jgm/pandoc/releases) |
-| **CSL** | [citationstyles.org](https://citationstyles.org/) |
+| 📁 **Bibliographie** | `.bib`, CSL `.json`… Bureau : sélecteur ou chemin absolu/relatif · Mobile : chemin **relatif au coffre** (`refs/bib.bib`) |
+| 🎨 **Style CSL** *(opt.)* | Liste intégrée ou `.csl` ; surcharge frontmatter (`bibliography`, `csl`, `lang`…) |
+| 📋 **Panneau** | Palette → **« PandoCit : Show reference list »** |
+| 🌐 **Langue UI** *(opt.)* | Réglages du plugin (libellés, notices, panneau) |
 
----
+## 📚 Zotero *(optionnel)*
 
-<div align="center">
+### 🔗 Better BibTeX / local
 
-<sub>README · <a href="README.en.md">English</a></sub>
+Réseau local — surtout **bureau**. Mobile → fichier bib dans le coffre.
 
-</div>
+### ☁️ Web API
+
+- 🔑 Clé API · bibliothèque **personnelle** ou **groupe** (ID)
+- 🔀 Fusion groupes · **Charger les groupes** ou noms personnalisés
+- 🔄 Sync bidirectionnelle · export **BibTeX** → `.bib` (Pandoc, LaTeX, Typst)
+- 💾 JSON dans le dossier plugin — **pas de Node Zotero** ; hors ligne après synchro
+
+### 🌳 Panneau bibliothèque
+
+**« Ouvrir le panneau bibliothèque Zotero »** — arbre (collections, sans classe, PJ, corbeille), filtre, édition, **PDF** sur la ligne, chevrons pour sous-arbres, badges de type selon la langue du plugin · **« Sync Zotero library (Web API) »** pour actualiser.
+
+## 🛠️ Développement
+
+📦 [Node.js](https://nodejs.org/) · [Yarn](https://yarnpkg.com/)
+
+```bash
+yarn install && yarn build
+```
+
+Copier dans `.obsidian/plugins/<plugin>/` : `main.js`, `manifest.json`, `styles.css`, `pandoc.wasm`
+
+## ⚠️ WASM
+
+Bac à sable : pas de réseau ni shell depuis Pandoc — uniquement bib → CSL JSON.
+
+## 🔗 Ressources
+
+<a href="https://atelier.atechnologie.fr/"><img src="https://img.shields.io/badge/l'Atelier-atelier.atechnologie.fr-6d28d9?style=flat-square&logo=google-chrome&logoColor=white" /></a>
+<a href="https://github.com/Atelier-Recherche/pandocit"><img src="https://img.shields.io/badge/GitHub-Atelier--Recherche%2Fpandocit-181717?style=flat-square&logo=github" /></a>
+<a href="https://pandoc.org/"><img src="https://img.shields.io/badge/Pandoc-pandoc.org-1a56db?style=flat-square" /></a>
+<a href="https://github.com/jgm/pandoc/releases"><img src="https://img.shields.io/badge/pandoc.wasm-3.9-1a56db?style=flat-square" /></a>
+<a href="https://citationstyles.org/"><img src="https://img.shields.io/badge/CSL-citationstyles.org-059669?style=flat-square" /></a>
+
+<p align="center"><sub>🇫🇷 FR · <a href="README.en.md">🇬🇧 EN</a> · <a href="README.de.md">🇩🇪 DE</a> · <a href="README.es.md">🇪🇸 ES</a></sub></p>
