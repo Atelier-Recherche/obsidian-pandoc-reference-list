@@ -99,6 +99,13 @@ export default {
   'Show citation info': 'Show citation info',
   'PDF not in vault or unavailable on mobile':
     'PDF is not in the vault or cannot be opened on mobile',
+  'PDF open path label': 'Zotero path',
+  'PDF open strategy label': 'Resolution',
+  'PDF open tried label': 'Tried',
+  'PDF open log hint':
+    'Details in the developer console: filter by [PandoCit PDF]',
+  'PDF open failed see console':
+    'Could not open PDF — see console ([PandoCit PDF])',
   'Local file open is only available on desktop':
     'Local file open is only available on desktop',
   'Edit item form hint':
