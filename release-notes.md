@@ -1,1 +1,4 @@
-2647e4d Update GitHub Actions workflow to use Node.js 20.x and enable yarn caching for improved build performance.
+8280022 Implement citation interaction enhancements for mobile and desktop in PandoCit plugin. Add tap mode support for citations, update tooltip behavior, and improve citation path resolution. Remove unused logo image and update localization strings for better user experience.
+1239d06 Enhance README files for PandoCit plugin by improving layout, clarity, and formatting. Update installation instructions, feature descriptions, and Zotero integration details across all language versions for a better user experience.
+fa62fdc Refactor README files to improve layout and clarity, enhancing the presentation of the PandoCit plugin's features, installation instructions, and Zotero integration. Update language sections and formatting for better user experience.
+467f6ca Update README.md to enhance plugin description, installation instructions, and integration details with Zotero. Improve formatting and clarity for better user experience.
