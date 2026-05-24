@@ -4,6 +4,7 @@ import {
   MarkdownView,
   Notice,
   Platform,
+  TFile,
   htmlToMarkdown,
 } from 'obsidian';
 import type { PaneType } from 'obsidian';
@@ -89,17 +90,20 @@ function stripFileUrlPrefix(p: string): string {
   return s;
 }
 
-function vaultHasFileAt(relPath: string): boolean {
-  if (!relPath || relPath.includes('..')) return false;
-  if (app.vault.getAbstractFileByPath(relPath)) return true;
-  const lower = relPath.toLowerCase();
-  const files = app.vault.getFiles();
-  return files.some(
-    (f) =>
-      f.path === relPath ||
-      f.path.toLowerCase() === lower ||
-      f.path.replace(/\\/g, '/').toLowerCase() === lower
-  );
+/** Chemin exact tel qu’indexé par Obsidian (casse, séparateurs). */
+export function resolveVaultFilePath(relPath: string): string | null {
+  const cleaned = normalizeVaultRelativePath(relPath);
+  if (!cleaned || cleaned.includes('..')) return null;
+
+  const direct = app.vault.getAbstractFileByPath(cleaned);
+  if (direct) return direct.path;
+
+  const normLower = cleaned.toLowerCase();
+  for (const f of app.vault.getFiles()) {
+    const fp = f.path.replace(/\\/g, '/');
+    if (fp === cleaned || fp.toLowerCase() === normLower) return f.path;
+  }
+  return null;
 }
 
 /** Cherche un fichier du coffre dont le chemin se termine comme `path` (chemins Zotero absolus d’un autre appareil). */
@@ -109,7 +113,8 @@ function findVaultPathBySuffix(path: string): string | null {
   for (let len = segments.length; len >= 1; len--) {
     const suffix = segments.slice(-len).join('/');
     if (suffix.includes('..')) continue;
-    if (vaultHasFileAt(suffix)) return suffix;
+    const canonical = resolveVaultFilePath(suffix);
+    if (canonical) return canonical;
   }
   return null;
 }
@@ -149,8 +154,10 @@ export function resolveVaultRelativePdfPathDetailed(
 
   const tryRel = (rel: string, strategy: string): PdfPathResolution | null => {
     checkedPaths.push(rel);
-    if (vaultHasFileAt(rel)) {
-      return { ...base, rel, strategy };
+    const canonical = resolveVaultFilePath(rel);
+    if (canonical) {
+      checkedPaths.push(canonical);
+      return { ...base, rel: canonical, strategy };
     }
     return null;
   };
@@ -180,6 +187,7 @@ export function resolveVaultRelativePdfPathDetailed(
   if (!isAbsoluteFilesystemPath(normalizedInput)) {
     const rel = normalizeVaultRelativePath(normalizedInput);
     if (!rel.includes('..')) {
+      checkedPaths.push(rel);
       return {
         ...base,
         rel,
@@ -196,6 +204,89 @@ export function resolveVaultRelativePdfPathDetailed(
  */
 export function resolveVaultRelativePdfPath(path: string): string | null {
   return resolveVaultRelativePdfPathDetailed(path).rel;
+}
+
+/**
+ * Sur mobile, `'tab'` est souvent ignoré — on normalise en booléen.
+ */
+function pdfOpenLeaf(newLeaf: boolean | PaneType): boolean | PaneType {
+  if (Platform.isDesktop) return newLeaf;
+  return newLeaf === false ? false : true;
+}
+
+async function tryOpenLinkText(
+  linktext: string,
+  sourcePath: string,
+  newLeaf: boolean | PaneType
+): Promise<boolean> {
+  const leaf = pdfOpenLeaf(newLeaf);
+  logPdfOpen('info', 'trying openLinkText', { linktext, sourcePath, newLeaf: leaf });
+  try {
+    const result = app.workspace.openLinkText(linktext, sourcePath, leaf);
+    if (result && typeof (result as Promise<void>).then === 'function') {
+      await (result as Promise<void>);
+    }
+    logPdfOpen('info', 'openLinkText ok', { linktext });
+    return true;
+  } catch (err) {
+    logPdfOpen('warn', 'openLinkText failed', { linktext, error: String(err) });
+    return false;
+  }
+}
+
+async function tryOpenVaultPdfFile(
+  rel: string,
+  sourcePath: string,
+  page: number | null | undefined,
+  newLeaf: boolean | PaneType
+): Promise<boolean> {
+  const canonical = resolveVaultFilePath(rel) ?? rel;
+  const abstract = app.vault.getAbstractFileByPath(canonical);
+  const leafOpt = pdfOpenLeaf(newLeaf);
+  const hasPage = page != null && Number.isFinite(page);
+
+  logPdfOpen('info', 'trying vault open', {
+    canonical,
+    hasTFile: abstract instanceof TFile,
+    hasPage,
+    newLeaf: leafOpt,
+  });
+
+  if (hasPage) {
+    const linktext = `${canonical}#page=${page}`;
+    if (await tryOpenLinkText(linktext, sourcePath, leafOpt)) return true;
+    if (await tryOpenLinkText(`[[${linktext}]]`, sourcePath, leafOpt)) {
+      return true;
+    }
+    if (sourcePath && (await tryOpenLinkText(linktext, '', leafOpt))) return true;
+    return false;
+  }
+
+  if (abstract instanceof TFile) {
+    try {
+      const leaf = app.workspace.getLeaf(leafOpt);
+      const result = leaf.openFile(abstract);
+      if (result && typeof (result as Promise<void>).then === 'function') {
+        await (result as Promise<void>);
+      }
+      logPdfOpen('info', 'openFile ok', { path: canonical });
+      return true;
+    } catch (err) {
+      logPdfOpen('warn', 'openFile failed', {
+        path: canonical,
+        error: String(err),
+      });
+    }
+  }
+
+  if (await tryOpenLinkText(canonical, sourcePath, leafOpt)) return true;
+  if (await tryOpenLinkText(`[[${canonical}]]`, sourcePath, leafOpt)) return true;
+  if (sourcePath && (await tryOpenLinkText(canonical, '', leafOpt))) return true;
+  if (sourcePath && (await tryOpenLinkText(`[[${canonical}]]`, '', leafOpt))) {
+    return true;
+  }
+
+  return false;
 }
 
 /**
@@ -226,41 +317,14 @@ export function openPdfAbsolutePathInObsidianOrExternal(
   });
 
   if (rel) {
-    const linktext =
-      page != null && Number.isFinite(page)
-        ? `${rel}#page=${page}`
-        : rel;
-    const file = app.vault.getAbstractFileByPath(rel);
-    if (!file && diag.strategy === 'relative-not-found-in-vault') {
-      logPdfOpen('warn', 'relative path not indexed in vault', {
+    void tryOpenVaultPdfFile(rel, sourcePath, page, newLeaf).then((ok) => {
+      if (ok) return;
+      logPdfOpen('warn', 'all vault open strategies failed', {
         rel,
-        strategy: diag.strategy,
-      });
-    }
-    try {
-      const result = app.workspace.openLinkText(
-        linktext,
         sourcePath,
-        newLeaf
-      ) as unknown;
-      if (result && typeof (result as Promise<void>).then === 'function') {
-        void (result as Promise<void>).catch((err: unknown) => {
-          logPdfOpen('warn', 'openLinkText rejected', {
-            linktext,
-            error: String(err),
-          });
-          new Notice(t('PDF open failed see console'));
-        });
-      } else {
-        logPdfOpen('info', 'openLinkText called', { linktext });
-      }
-    } catch (err) {
-      logPdfOpen('warn', 'openLinkText threw', {
-        linktext,
-        error: String(err),
       });
-      new Notice(t('PDF open failed see console'));
-    }
+      new Notice(t('PDF open failed see console'), 8000);
+    });
     return;
   }
 
