@@ -2,20 +2,49 @@ import {
   App,
   FileSystemAdapter,
   MarkdownView,
+  Notice,
   Platform,
   htmlToMarkdown,
 } from 'obsidian';
 import type { PaneType } from 'obsidian';
 
+import { t } from './lang/helpers';
 import { getPath } from './platformAdapter';
 
-export function getVaultRoot(): string {
-  if (!Platform.isDesktop) return '';
-  try {
-    return (app.vault.adapter as FileSystemAdapter).getBasePath();
-  } catch {
-    return '';
+export function citationInfoUsesTap(): boolean {
+  if (Platform.isMobileApp || Platform.isIosApp || Platform.isAndroidApp) {
+    return true;
   }
+  try {
+    return window.matchMedia('(hover: none)').matches;
+  } catch {
+    return false;
+  }
+}
+
+export function isAbsoluteFilesystemPath(p: string): boolean {
+  const v = p.trim();
+  return (
+    /^[a-zA-Z]:[\\/]/.test(v) || v.startsWith('/') || v.startsWith('\\\\')
+  );
+}
+
+/** Chemin relatif au coffre avec `/` (sans segment `..`). */
+export function normalizeVaultRelativePath(p: string): string {
+  return p.trim().replace(/\\/g, '/').replace(/^\/+/, '');
+}
+
+export function getVaultRoot(): string {
+  try {
+    const adapter = app.vault.adapter;
+    if (adapter instanceof FileSystemAdapter) {
+      const base = adapter.getBasePath?.();
+      if (typeof base === 'string' && base.length > 0) return base;
+    }
+  } catch {
+    //
+  }
+  return '';
 }
 
 /**
@@ -35,6 +64,23 @@ export function absolutePathToVaultRelative(absPath: string): string | null {
 }
 
 /**
+ * Chemin utilisable par `openLinkText` dans le coffre Obsidian, ou `null`.
+ * Gère les chemins déjà relatifs (souvent enregistrés ainsi dans Zotero sur mobile).
+ */
+export function resolveVaultRelativePdfPath(path: string): string | null {
+  const v = path.trim();
+  if (!v) return null;
+
+  if (!isAbsoluteFilesystemPath(v)) {
+    const rel = normalizeVaultRelativePath(v);
+    if (rel.includes('..')) return null;
+    return rel;
+  }
+
+  return absolutePathToVaultRelative(v);
+}
+
+/**
  * Ouvre un PDF dans Obsidian (chemin vault relatif + `#page=` si besoin), sans syntaxe
  * wiki `[[…]]`, pour éviter qu’elle apparaisse dans l’UI ; sinon `file://` externe.
  * @param newLeaf `false` = même groupe de panneaux (souvent vue scindée), `'tab'` ou `true` = nouvel onglet.
@@ -45,13 +91,17 @@ export function openPdfAbsolutePathInObsidianOrExternal(
   page: number | null | undefined,
   newLeaf: boolean | PaneType = 'tab'
 ): void {
-  const rel = absolutePathToVaultRelative(absPath);
+  const rel = resolveVaultRelativePdfPath(absPath);
   if (rel) {
     const linktext =
       page != null && Number.isFinite(page)
         ? `${rel}#page=${page}`
         : rel;
     app.workspace.openLinkText(linktext, sourcePath, newLeaf);
+    return;
+  }
+  if (!Platform.isDesktop) {
+    new Notice(t('PDF not in vault or unavailable on mobile'));
     return;
   }
   const href =

@@ -102,7 +102,7 @@ export function processCiteKeys(plugin: ReferenceList) {
             span.append(node.cloneNode());
           }
 
-          plugin.tooltipManager.bindPreviewTooltipHandler(span);
+          plugin.tooltipManager.bindCitationInteraction(span);
 
           continue;
         }
@@ -121,7 +121,7 @@ export function processCiteKeys(plugin: ReferenceList) {
                   isUnresolved: false,
                 };
 
-              frag.createSpan({
+              const keySpan = frag.createSpan({
                 cls: getCiteClass(isResolved, isUnresolved),
                 text: part.val,
                 attr: {
@@ -129,6 +129,7 @@ export function processCiteKeys(plugin: ReferenceList) {
                   'data-source': ctx.sourcePath,
                 },
               });
+              plugin.tooltipManager.bindCitationInteraction(keySpan);
               continue;
             }
             case SegmentType.at: {

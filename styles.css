@@ -282,6 +282,36 @@ body {
   pointer-events: none;
 }
 
+/* Mobile / tactile : icône info + tap sur la citation */
+body.pwc-cite-tap-mode .pandoc-citation[data-citekey],
+body.pwc-cite-tap-mode .cm-pandoc-citation[data-citekey] {
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+body.pwc-cite-tap-mode .pandoc-citation[data-citekey]::after,
+body.pwc-cite-tap-mode .cm-pandoc-citation[data-citekey]::after {
+  content: '';
+  display: inline-block;
+  width: 0.95em;
+  height: 0.95em;
+  margin-left: 0.2em;
+  vertical-align: -0.12em;
+  opacity: 0.65;
+  background-color: var(--text-muted);
+  mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='10'/%3E%3Cpath d='M12 16v-4'/%3E%3Cpath d='M12 8h.01'/%3E%3C/svg%3E");
+  -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='10'/%3E%3Cpath d='M12 16v-4'/%3E%3Cpath d='M12 8h.01'/%3E%3C/svg%3E");
+  mask-size: contain;
+  -webkit-mask-size: contain;
+  mask-repeat: no-repeat;
+  -webkit-mask-repeat: no-repeat;
+  pointer-events: none;
+}
+
+body.pwc-cite-tap-mode .pwc-tooltip {
+  max-width: min(95vw, 340px);
+}
+
 .pwc-success {
   color: var(--interactive-success);
 }
@@ -708,10 +738,17 @@ body {
 
 .pwc-tooltip-cite-btn {
   display: inline-flex;
-  padding: 0.2rem;
+  padding: 0.35rem;
   border-radius: var(--radius-s);
   flex-shrink: 0;
   --icon-size: 16px;
+  touch-action: manipulation;
+  pointer-events: auto;
+}
+
+body.pwc-cite-tap-mode .pwc-tooltip-cite-btn {
+  padding: 0.45rem;
+  --icon-size: 18px;
 }
 
 .pwc-tooltip-cite-btn:hover {

@@ -163,6 +163,7 @@ export default class ReferenceList extends Plugin {
       'pwc-tooltips',
       !!this.settings.showCitekeyTooltips
     );
+    TooltipManager.syncTapModeBodyClass(!!this.settings.showCitekeyTooltips);
 
     this.registerEvent(
       app.metadataCache.on(
@@ -220,7 +221,7 @@ export default class ReferenceList extends Plugin {
   }
 
   onunload() {
-    document.body.removeClass('pwc-tooltips');
+    document.body.removeClass('pwc-tooltips', 'pwc-cite-tap-mode');
     this.app.workspace
       .getLeavesOfType(viewType)
       .forEach((leaf) => leaf.detach());
@@ -408,6 +409,7 @@ export default class ReferenceList extends Plugin {
       'pwc-tooltips',
       !!this.settings.showCitekeyTooltips
     );
+    TooltipManager.syncTapModeBodyClass(!!this.settings.showCitekeyTooltips);
 
     // Refresh the reference list when settings change
     this.emitSettingsUpdate(cb);

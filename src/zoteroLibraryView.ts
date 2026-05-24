@@ -13,6 +13,8 @@ import ReferenceList from './main';
 import {
   getVaultRoot,
   insertTextInActiveMarkdownNote,
+  isAbsoluteFilesystemPath,
+  normalizeVaultRelativePath,
   openPdfAbsolutePathInObsidianOrExternal,
 } from './helpers';
 import { t } from './lang/helpers';
@@ -689,6 +691,9 @@ export class ZoteroLibraryView extends ItemView {
     const pathMod = getPath();
     const v = input.trim();
     if (!v) return '';
+    if (!pathMod.isAbsolute(v) && !isAbsoluteFilesystemPath(v)) {
+      return normalizeVaultRelativePath(v);
+    }
     if (pathMod.isAbsolute(v)) return pathMod.normalize(v);
     const root = getVaultRoot();
     if (!root) return v;

@@ -93,6 +93,9 @@ export default {
   'Open linked PDF': 'Ouvrir le PDF lié',
   'Local file': 'Fichier local',
   'Web link': 'Lien web',
+  'Show citation info': 'Afficher la citation',
+  'PDF not in vault or unavailable on mobile':
+    'Le PDF n’est pas dans le coffre ou ne peut pas s’ouvrir sur mobile',
   'Local file open is only available on desktop':
     'L’ouverture du fichier local n’est disponible que sur bureau',
   'Edit item form hint':

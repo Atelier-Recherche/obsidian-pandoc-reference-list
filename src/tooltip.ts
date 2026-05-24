@@ -1,6 +1,9 @@
 import { TFile, setIcon } from 'obsidian';
 
-import { openPdfAbsolutePathInObsidianOrExternal } from './helpers';
+import {
+  citationInfoUsesTap,
+  openPdfAbsolutePathInObsidianOrExternal,
+} from './helpers';
 import { t } from './lang/helpers';
 import ReferenceList from './main';
 import clip from 'text-clipper';
@@ -16,10 +19,20 @@ export class TooltipManager {
   tooltip: HTMLDivElement;
   isHoveringTooltip = false;
   isScrollBound = false;
+  /** Citation épinglée au tap (mobile / pas de survol). */
+  pinnedCiteEl: HTMLElement | null = null;
+  private outsideDismiss: ((evt: Event) => void) | null = null;
 
   constructor(plugin: ReferenceList) {
     this.plugin = plugin;
     plugin.register(() => this.hideTooltip());
+  }
+
+  static syncTapModeBodyClass(showTooltips: boolean) {
+    document.body.toggleClass(
+      'pwc-cite-tap-mode',
+      !!showTooltips && citationInfoUsesTap()
+    );
   }
 
   showTooltip(el: HTMLElement) {
@@ -104,9 +117,10 @@ export class TooltipManager {
       if (evt.targetNode.instanceOf(HTMLElement)) {
         if (
           evt.targetNode.tagName === 'A' ||
-          evt.targetNode.hasClass('clickable-icon')
+          evt.targetNode.hasClass('clickable-icon') ||
+          evt.targetNode.closest('.pwc-tooltip-cite-btn')
         ) {
-          this.hideTooltip();
+          if (!this.pinnedCiteEl) this.hideTooltip();
         }
       }
     });
@@ -162,7 +176,9 @@ export class TooltipManager {
         },
         (div) => {
           setIcon(div, 'lucide-external-link');
-          div.onClickEvent(() => {
+          div.onClickEvent((evt) => {
+            evt.preventDefault();
+            evt.stopPropagation();
             activeWindow.open(zLink, '_blank');
             this.hideTooltip();
           });
@@ -183,7 +199,9 @@ export class TooltipManager {
         },
         (div) => {
           setIcon(div, 'lucide-file-text');
-          div.onClickEvent(() => {
+          div.onClickEvent((evt) => {
+            evt.preventDefault();
+            evt.stopPropagation();
             openPdfAbsolutePathInObsidianOrExternal(
               absPath,
               sourcePath,
@@ -205,7 +223,9 @@ export class TooltipManager {
         },
         (div) => {
           setIcon(div, 'globe');
-          div.onClickEvent(() => {
+          div.onClickEvent((evt) => {
+            evt.preventDefault();
+            evt.stopPropagation();
             activeWindow.open(url, '_blank');
             this.hideTooltip();
           });
@@ -219,15 +239,64 @@ export class TooltipManager {
   hideTooltip() {
     this.isHoveringTooltip = false;
     this.isScrollBound = false;
+    if (this.outsideDismiss && this.pinnedCiteEl) {
+      const doc = this.pinnedCiteEl.doc ?? document;
+      doc.removeEventListener('pointerdown', this.outsideDismiss, {
+        capture: true,
+      });
+    }
+    this.outsideDismiss = null;
+    this.pinnedCiteEl = null;
     this.tooltip?.win.removeEventListener('scroll', this.boundScroll);
     this.tooltip?.remove();
     this.tooltip = null;
     this.boundScroll = null;
   }
 
+  private showTooltipPinned(el: HTMLElement) {
+    this.pinnedCiteEl = el;
+    this.showTooltip(el);
+    const doc = el.doc ?? document;
+    this.outsideDismiss = (evt: Event) => {
+      const target = evt.target;
+      if (!(target instanceof Node)) return;
+      if (this.tooltip?.contains(target) || el.contains(target)) return;
+      this.hideTooltip();
+    };
+    doc.addEventListener('pointerdown', this.outsideDismiss, { capture: true });
+  }
+
+  private togglePinnedTooltip(el: HTMLElement) {
+    if (this.tooltip && this.pinnedCiteEl === el) {
+      this.hideTooltip();
+      return;
+    }
+    this.hideTooltip();
+    this.showTooltipPinned(el);
+  }
+
   previewDBTimer = 0;
   previewDBTimerClose = 0;
-  bindPreviewTooltipHandler(el: HTMLElement) {
+  bindCitationInteraction(el: HTMLElement) {
+    if (!this.plugin.settings.showCitekeyTooltips) return;
+
+    if (citationInfoUsesTap()) {
+      el.addClass('pwc-cite-tappable');
+      el.setAttr('role', 'button');
+      el.setAttr('aria-label', t('Show citation info'));
+      el.addEventListener('click', (evt) => {
+        if (!el.dataset.citekey || el.hasClass('is-link')) return;
+        evt.preventDefault();
+        evt.stopPropagation();
+        this.togglePinnedTooltip(el);
+      });
+      return;
+    }
+
+    this.bindHoverCitationHandler(el);
+  }
+
+  private bindHoverCitationHandler(el: HTMLElement) {
     el.addEventListener('pointerover', (evt) => {
       evt.view.clearTimeout(this.previewDBTimer);
       evt.view.clearTimeout(this.previewDBTimerClose);
@@ -272,7 +341,13 @@ export class TooltipManager {
     }
   }
 
+  /** @deprecated Utiliser bindCitationInteraction */
+  bindPreviewTooltipHandler(el: HTMLElement) {
+    this.bindCitationInteraction(el);
+  }
+
   getEditorTooltipHandler() {
+    const useTap = citationInfoUsesTap();
     let dbOverTimer = 0;
     let dbOutTimer = 0;
     let isClosing = false;
@@ -280,13 +355,32 @@ export class TooltipManager {
 
     return {
       scroll: (evt: UIEvent) => {
-        if (activeKey) {
+        if (activeKey || this.pinnedCiteEl) {
           evt.view?.clearTimeout(dbOutTimer);
           evt.view?.clearTimeout(dbOverTimer);
           activeKey = null;
+          this.hideTooltip();
         }
       },
-      pointerover: (evt: PointerEvent) => {
+      click: useTap
+        ? (evt: MouseEvent) => {
+            let target = evt.target as HTMLElement | null;
+            while (target && !target.dataset.citekey) {
+              target = target.parentElement;
+            }
+            if (!target?.dataset.citekey || target.hasClass('is-link')) {
+              return false;
+            }
+            evt.preventDefault();
+            evt.stopPropagation();
+            this.togglePinnedTooltip(target);
+            activeKey = target.dataset.citekey;
+            return true;
+          }
+        : undefined,
+      pointerover: useTap
+        ? undefined
+        : (evt: PointerEvent) => {
         const target = evt.targetNode;
         if (target.instanceOf(HTMLElement)) {
           const citekey = target.dataset.citekey;
@@ -322,6 +416,6 @@ export class TooltipManager {
           }, 150);
         }
       },
-    };
+    } as Record<string, ((evt: any) => boolean | void) | undefined>;
   }
 }
