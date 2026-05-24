@@ -1,1 +1,1 @@
-07e7c80 Implement detailed PDF path resolution and logging in PandoCit plugin. Introduce new logging function for PDF opening attempts, enhance path resolution strategies, and update localization strings for improved user feedback across multiple languages.
+4bcc976 Refactor PDF file handling in PandoCit plugin. Introduce `resolveVaultFilePath` for improved path resolution, replace `vaultHasFileAt` with this new function, and enhance PDF opening logic with better error handling and logging. Update localization for user feedback.
