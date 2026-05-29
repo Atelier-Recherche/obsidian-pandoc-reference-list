@@ -1,1 +1,1 @@
-d238a0b Improve error handling in esbuild configuration and update GitHub Actions workflow. Log errors during the build process and ensure the correct Node.js version is used. Add checks for essential files and package the plugin into a zip for release.
+8fb8b97 Update GitHub Actions workflow to improve dependency installation process. Remove yarn cache to prevent corruption issues and ensure consistent builds by using frozen lockfile during installation.
