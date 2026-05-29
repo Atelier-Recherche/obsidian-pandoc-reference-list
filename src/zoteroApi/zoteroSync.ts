@@ -1,6 +1,7 @@
 import type ReferenceList from 'src/main';
 import { Notice } from 'obsidian';
 
+import { md5Hex } from './fileHash';
 import { normalizeWebHref, pathForZoteroLinkedFileStorage } from './attachmentLinks';
 
 import type {
@@ -585,6 +586,484 @@ export class ZoteroSyncService {
     }
 
     return { ok: true };
+  }
+
+  private getDefaultWriteRoute(): {
+    fileId: string;
+    prefix: string;
+    syncAsGroupId?: number;
+  } {
+    const s = this.plugin.settings;
+    const uid = s.zoteroApiUserId ?? 0;
+    if (s.zoteroApiLibraryType === 'group' && s.zoteroApiGroupId != null) {
+      return {
+        fileId: libraryCacheFileId(uid, 'group', s.zoteroApiGroupId),
+        prefix: `/groups/${s.zoteroApiGroupId}`,
+        syncAsGroupId: s.zoteroApiGroupId,
+      };
+    }
+    return {
+      fileId: libraryCacheFileId(uid, 'user'),
+      prefix: `/users/${uid}`,
+    };
+  }
+
+  private parsePostItemsError(text: string, status: number): string {
+    let detail = `http_${status}`;
+    try {
+      const j = JSON.parse(text) as {
+        failed?: Record<string, { message?: string }>;
+      };
+      const f = j.failed && Object.values(j.failed)[0];
+      if (f && typeof f.message === 'string') detail = f.message;
+    } catch {
+      //
+    }
+    return detail;
+  }
+
+  private async postItemsWithRetry(
+    route: ReturnType<ZoteroSyncService['getDefaultWriteRoute']>,
+    items: Record<string, unknown>[]
+  ): Promise<{
+    ok: boolean;
+    keys: string[];
+    error?: string;
+    lastModifiedVersion?: number;
+  }> {
+    this.updateApiKey();
+    let snap = await this.store.load(route.fileId);
+    const body = JSON.stringify(items);
+    const libVerBeforePost = snap.libraryVersion;
+    let res = await this.client.postItems(route.prefix, snap.libraryVersion, body);
+
+    for (let r412 = 0; res.status === 412 && r412 < 2; r412++) {
+      const pull = await this.pullIncremental(route.prefix, route.fileId);
+      await this.saveSnapshotFile(route.fileId, pull.snap);
+      snap = await this.store.load(route.fileId);
+      res = await this.client.postItems(route.prefix, snap.libraryVersion, body);
+    }
+
+    if (res.status === 412) return { ok: false, keys: [], error: '412' };
+    if (res.status < 200 || res.status >= 300) {
+      return {
+        ok: false,
+        keys: [],
+        error: this.parsePostItemsError(res.text, res.status),
+      };
+    }
+
+    try {
+      const written = JSON.parse(res.text) as {
+        failed?: Record<string, { code?: number; message?: string }>;
+      };
+      if (written.failed && Object.keys(written.failed).length > 0) {
+        const f = Object.values(written.failed)[0];
+        const msg =
+          f && typeof f.message === 'string' && f.message.trim()
+            ? f.message.trim()
+            : 'write_failed';
+        return { ok: false, keys: [], error: msg };
+      }
+    } catch {
+      //
+    }
+
+    const keys = extractNewItemKeysFromWriteResponse(res.text);
+    for (const key of keys) {
+      await this.fetchAndOverwriteItemPlain(key, route.prefix, route.fileId);
+    }
+
+    if (!keys.length) {
+      const sRewind = await this.store.load(route.fileId);
+      sRewind.libraryVersion = libVerBeforePost;
+      await this.saveSnapshotFile(route.fileId, sRewind);
+      await this.syncRewindFallback(route.syncAsGroupId);
+    }
+
+    const sFinal = await this.store.load(route.fileId);
+    if (res.lastModifiedVersion != null) {
+      sFinal.libraryVersion = Math.max(
+        sFinal.libraryVersion,
+        res.lastModifiedVersion
+      );
+    }
+    await this.saveSnapshotFile(route.fileId, sFinal);
+
+    return { ok: true, keys, lastModifiedVersion: res.lastModifiedVersion };
+  }
+
+  /** Crée un item catalogue (livre, document, etc.) sans parent. */
+  async createTopLevelItem(spec: {
+    itemType?: string;
+    title: string;
+    creators?: Record<string, unknown>[];
+    citationKey?: string;
+  }): Promise<{ ok: boolean; key?: string; error?: string }> {
+    const route = this.getDefaultWriteRoute();
+    const creators = normalizeCreatorsArrayForWrite(spec.creators ?? []);
+    const data: Record<string, unknown> = {
+      itemType: spec.itemType?.trim() || 'book',
+      title: spec.title.trim() || 'Untitled',
+    };
+    if (creators?.length) data.creators = creators;
+    const ck = spec.citationKey?.trim();
+    if (ck) data.citationKey = ck;
+
+    const posted = await this.postItemsWithRetry(route, [data]);
+    if (!posted.ok || !posted.keys[0]) {
+      return { ok: false, error: posted.error ?? 'no_key' };
+    }
+    return { ok: true, key: posted.keys[0] };
+  }
+
+  /** Route API pour une clé collection (y compris préfixe fusion groupe). */
+  collectionRouteForStorageKey(storageCollectionKey: string): {
+    prefix: string;
+    collectionKey: string;
+    fileId: string;
+    syncAsGroupId?: number;
+  } {
+    const m = storageCollectionKey.match(/^g(\d+)_c_(.+)$/);
+    if (m) {
+      const gid = parseInt(m[1], 10);
+      const uid = this.plugin.settings.zoteroApiUserId ?? 0;
+      return {
+        prefix: `/groups/${gid}`,
+        collectionKey: m[2],
+        fileId: libraryCacheFileId(uid, 'group', gid),
+        syncAsGroupId: gid,
+      };
+    }
+    const base = this.getDefaultWriteRoute();
+    return {
+      prefix: base.prefix,
+      collectionKey: storageCollectionKey,
+      fileId: base.fileId,
+      syncAsGroupId: base.syncAsGroupId,
+    };
+  }
+
+  async addItemToCollection(
+    storageCollectionKey: string,
+    itemKey: string
+  ): Promise<{ ok: boolean; error?: string }> {
+    if (!storageCollectionKey.trim()) return { ok: true };
+    this.updateApiKey();
+    const collRoute = this.collectionRouteForStorageKey(storageCollectionKey);
+    const itemRoute = this.getWriteRoute(itemKey);
+    const plainItemKey =
+      itemRoute.plainKey !== itemKey
+        ? itemRoute.plainKey
+        : parseStorageItemKey(itemKey).plainKey;
+
+    let snap = await this.store.load(collRoute.fileId);
+    let res = await this.client.postCollectionItems(
+      collRoute.prefix,
+      collRoute.collectionKey,
+      snap.libraryVersion,
+      [plainItemKey]
+    );
+
+    for (let r412 = 0; res.status === 412 && r412 < 2; r412++) {
+      const pull = await this.pullIncremental(collRoute.prefix, collRoute.fileId);
+      await this.saveSnapshotFile(collRoute.fileId, pull.snap);
+      snap = await this.store.load(collRoute.fileId);
+      res = await this.client.postCollectionItems(
+        collRoute.prefix,
+        collRoute.collectionKey,
+        snap.libraryVersion,
+        [plainItemKey]
+      );
+    }
+
+    if (res.status === 412) return { ok: false, error: '412' };
+    if (res.status < 200 || res.status >= 300) {
+      return { ok: false, error: `http_${res.status}` };
+    }
+
+    if (res.lastModifiedVersion != null) {
+      snap.libraryVersion = Math.max(
+        snap.libraryVersion,
+        res.lastModifiedVersion
+      );
+      await this.saveSnapshotFile(collRoute.fileId, snap);
+    }
+    return { ok: true };
+  }
+
+  /** Pièce jointe `imported_file` avec upload du binaire vers Zotero. */
+  async uploadImportedFileAttachment(
+    parentKey: string,
+    spec: { title: string; filename: string; bytes: Uint8Array; mtimeMs?: number }
+  ): Promise<{ ok: boolean; key?: string; error?: string }> {
+    const route = this.getWriteRoute(parentKey);
+    const parent = (await this.store.load(route.fileId)).items[route.plainKey];
+    if (!parent) return { ok: false, error: 'not_found' };
+
+    const filename = spec.filename.trim() || 'file.pdf';
+    const attachmentData: Record<string, unknown> = {
+      itemType: 'attachment',
+      linkMode: 'imported_file',
+      parentItem: route.plainKey,
+      title: spec.title.trim() || filename,
+      filename,
+      contentType: 'application/pdf',
+    };
+
+    const posted = await this.postItemsWithRetry(route, [attachmentData]);
+    if (!posted.ok || !posted.keys[0]) {
+      return { ok: false, error: posted.error ?? 'attachment_create_failed' };
+    }
+    const attachKey = posted.keys[0];
+
+    const hash = md5Hex(spec.bytes);
+    if (!hash) return { ok: false, error: 'md5_unavailable' };
+
+    const mtime = spec.mtimeMs ?? Date.now();
+    const auth = await this.client.postItemFileAuthorization(route.prefix, attachKey, {
+      md5: hash,
+      filename,
+      filesize: spec.bytes.byteLength,
+      mtime,
+    });
+
+    if (auth.status < 200 || auth.status >= 300) {
+      return { ok: false, error: `upload_auth_${auth.status}` };
+    }
+
+    let uploadInfo: {
+      exists?: number;
+      url?: string;
+      contentType?: string;
+      prefix?: string;
+      suffix?: string;
+      uploadKey?: string;
+    };
+    try {
+      uploadInfo = JSON.parse(auth.text) as typeof uploadInfo;
+    } catch {
+      return { ok: false, error: 'upload_auth_parse' };
+    }
+
+    if (uploadInfo.exists === 1) {
+      return { ok: true, key: attachKey };
+    }
+
+    if (
+      !uploadInfo.url ||
+      !uploadInfo.contentType ||
+      uploadInfo.prefix == null ||
+      uploadInfo.suffix == null ||
+      !uploadInfo.uploadKey
+    ) {
+      return { ok: false, error: 'upload_auth_incomplete' };
+    }
+
+    const enc = new TextEncoder();
+    const prefixBytes = enc.encode(uploadInfo.prefix);
+    const suffixBytes = enc.encode(uploadInfo.suffix);
+    const payload = new Uint8Array(
+      prefixBytes.length + spec.bytes.length + suffixBytes.length
+    );
+    payload.set(prefixBytes, 0);
+    payload.set(spec.bytes, prefixBytes.length);
+    payload.set(suffixBytes, prefixBytes.length + spec.bytes.length);
+
+    const up = await this.client.uploadFilePayload(
+      uploadInfo.url,
+      uploadInfo.contentType,
+      payload.buffer
+    );
+    if (up.status !== 200 && up.status !== 201) {
+      return { ok: false, error: `upload_post_${up.status}` };
+    }
+
+    const reg = await this.client.registerItemFileUpload(
+      route.prefix,
+      attachKey,
+      uploadInfo.uploadKey
+    );
+    if (reg.status !== 204 && (reg.status < 200 || reg.status >= 300)) {
+      return { ok: false, error: `upload_register_${reg.status}` };
+    }
+
+    await this.fetchAndOverwriteItemPlain(attachKey, route.prefix, route.fileId);
+    return { ok: true, key: attachKey };
+  }
+
+  async importVaultPdfAsZoteroItem(spec: {
+    title: string;
+    creators?: Record<string, unknown>[];
+    citationKey?: string;
+    itemType?: string;
+    attachmentMode: 'link' | 'upload';
+    vaultPath: string;
+    absolutePath: string;
+    fileBytes?: Uint8Array;
+    mtimeMs?: number;
+    collectionStorageKey?: string;
+  }): Promise<{ ok: boolean; parentKey?: string; error?: string }> {
+    const parent = await this.createTopLevelItem({
+      itemType: spec.itemType,
+      title: spec.title,
+      creators: spec.creators,
+      citationKey: spec.citationKey,
+    });
+    if (!parent.ok || !parent.key) {
+      return { ok: false, error: parent.error ?? 'parent_failed' };
+    }
+
+    let attachOk = false;
+    if (spec.attachmentMode === 'upload') {
+      if (!spec.fileBytes) {
+        return { ok: false, error: 'bytes_required', parentKey: parent.key };
+      }
+      const baseName =
+        spec.vaultPath.split(/[/\\]/).pop() ?? spec.title + '.pdf';
+      const up = await this.uploadImportedFileAttachment(parent.key, {
+        title: spec.title,
+        filename: baseName,
+        bytes: spec.fileBytes,
+        mtimeMs: spec.mtimeMs,
+      });
+      attachOk = up.ok;
+      if (!attachOk) {
+        return { ok: false, error: up.error, parentKey: parent.key };
+      }
+    } else {
+      const linked = await this.createChildAttachment(parent.key, {
+        linkMode: 'linked_file',
+        title: spec.title,
+        path: spec.absolutePath,
+      });
+      attachOk = linked.ok;
+      if (!attachOk) {
+        return { ok: false, error: linked.error, parentKey: parent.key };
+      }
+    }
+
+    if (spec.collectionStorageKey?.trim()) {
+      const coll = await this.addItemToCollection(
+        spec.collectionStorageKey,
+        parent.key
+      );
+      if (!coll.ok) {
+        return { ok: false, error: coll.error, parentKey: parent.key };
+      }
+    }
+
+    return { ok: true, parentKey: parent.key };
+  }
+
+  /** Crée une annotation enfant d’une pièce jointe PDF. */
+  async createAnnotation(
+    parentAttachmentKey: string,
+    fields: {
+      annotationType?: string;
+      annotationText?: string;
+      annotationComment?: string;
+      annotationColor?: string;
+      annotationPageLabel?: string;
+      annotationSortIndex?: string;
+      annotationPosition: string;
+    }
+  ): Promise<{ ok: boolean; key?: string; error?: string }> {
+    this.updateApiKey();
+    const route = this.getWriteRoute(parentAttachmentKey);
+    let snap = await this.store.load(route.fileId);
+    const parent = snap.items[route.plainKey];
+    if (!parent) return { ok: false, error: 'not_found' };
+    if (String(parent.data.itemType) !== 'attachment') {
+      return { ok: false, error: 'parent_not_attachment' };
+    }
+
+    const newData: Record<string, unknown> = {
+      itemType: 'annotation',
+      parentItem: route.plainKey,
+      annotationType: fields.annotationType ?? 'highlight',
+      annotationText: fields.annotationText ?? '',
+      annotationComment: fields.annotationComment ?? '',
+      annotationColor: fields.annotationColor ?? '#ffd400',
+      annotationPageLabel: fields.annotationPageLabel ?? '',
+      annotationSortIndex: fields.annotationSortIndex ?? '00000',
+      annotationPosition: fields.annotationPosition,
+    };
+
+    const body = JSON.stringify([newData]);
+    const libVerBeforePost = snap.libraryVersion;
+    let res = await this.client.postItems(
+      route.prefix,
+      snap.libraryVersion,
+      body
+    );
+
+    for (let r412 = 0; res.status === 412 && r412 < 2; r412++) {
+      const pull = await this.pullIncremental(route.prefix, route.fileId);
+      await this.saveSnapshotFile(route.fileId, pull.snap);
+      snap = await this.store.load(route.fileId);
+      res = await this.client.postItems(
+        route.prefix,
+        snap.libraryVersion,
+        body
+      );
+    }
+
+    if (res.status === 412) return { ok: false, error: '412' };
+    if (res.status < 200 || res.status >= 300) {
+      let detail = `http_${res.status}`;
+      try {
+        const j = JSON.parse(res.text) as {
+          failed?: Record<string, { message?: string }>;
+        };
+        const f = j.failed && Object.values(j.failed)[0];
+        if (f && typeof f.message === 'string') detail = f.message;
+      } catch {
+        //
+      }
+      return { ok: false, error: detail };
+    }
+
+    try {
+      const written = JSON.parse(res.text) as {
+        failed?: Record<string, { code?: number; message?: string }>;
+      };
+      if (written.failed && Object.keys(written.failed).length > 0) {
+        const f = Object.values(written.failed)[0];
+        const msg =
+          f && typeof f.message === 'string' && f.message.trim()
+            ? f.message.trim()
+            : 'write_failed';
+        return { ok: false, error: msg };
+      }
+    } catch {
+      //
+    }
+
+    const newKeys = extractNewItemKeysFromWriteResponse(res.text);
+    const newKey = newKeys[0];
+    if (newKey) {
+      await this.fetchAndOverwriteItemPlain(
+        newKey,
+        route.prefix,
+        route.fileId
+      );
+    }
+
+    const sFinal = await this.store.load(route.fileId);
+    if (res.lastModifiedVersion != null) {
+      sFinal.libraryVersion = Math.max(
+        sFinal.libraryVersion,
+        res.lastModifiedVersion
+      );
+    }
+    await this.saveSnapshotFile(route.fileId, sFinal);
+
+    if (route.syncAsGroupId != null) {
+      await this.syncRewindFallback(route.syncAsGroupId);
+    }
+
+    return newKey ? { ok: true, key: newKey } : { ok: true };
   }
 
   /** Après POST raté à récupérer l’item : sync sur la bonne bib. (user vs groupe). */

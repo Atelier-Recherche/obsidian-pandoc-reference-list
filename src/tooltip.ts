@@ -1,9 +1,7 @@
 import { TFile, setIcon } from 'obsidian';
 
-import {
-  citationInfoUsesTap,
-  openPdfAbsolutePathInObsidianOrExternal,
-} from './helpers';
+import { citationInfoUsesTap } from './helpers';
+import { openPdfForPlugin } from './readers/openDocument';
 import { t } from './lang/helpers';
 import ReferenceList from './main';
 import clip from 'text-clipper';
@@ -202,7 +200,8 @@ export class TooltipManager {
           div.onClickEvent((evt) => {
             evt.preventDefault();
             evt.stopPropagation();
-            openPdfAbsolutePathInObsidianOrExternal(
+            void openPdfForPlugin(
+              this.plugin,
               absPath,
               sourcePath,
               page,

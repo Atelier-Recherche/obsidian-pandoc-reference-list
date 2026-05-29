@@ -51,10 +51,11 @@ export class ZoteroApiClient {
     path: string,
     init?: {
       method?: string;
-      body?: string;
+      body?: string | ArrayBuffer;
       contentType?: string;
       ifModifiedSinceVersion?: number;
       ifUnmodifiedSinceVersion?: number;
+      extraHeaders?: Record<string, string>;
     }
   ): Promise<{
     status: number;
@@ -65,11 +66,14 @@ export class ZoteroApiClient {
     const url = path.startsWith('http')
       ? path
       : `${ZOTERO_API_BASE}${path.startsWith('/') ? '' : '/'}${path}`;
-    const headers = this.baseHeaders(
-      init?.contentType ? { 'Content-Type': init.contentType } : undefined,
-      init?.ifModifiedSinceVersion,
-      init?.ifUnmodifiedSinceVersion
-    );
+    const headers = {
+      ...this.baseHeaders(
+        init?.contentType ? { 'Content-Type': init.contentType } : undefined,
+        init?.ifModifiedSinceVersion,
+        init?.ifUnmodifiedSinceVersion
+      ),
+      ...init?.extraHeaders,
+    };
 
     const res = await requestUrl({
       url,
@@ -210,6 +214,95 @@ export class ZoteroApiClient {
       text: res.text,
       lastModifiedVersion: res.lastModifiedVersion,
     };
+  }
+
+  /** Ajoute des items à une collection Zotero. */
+  async postCollectionItems(
+    prefix: string,
+    collectionKey: string,
+    libraryVersion: number,
+    itemKeys: string[]
+  ): Promise<{
+    status: number;
+    text: string;
+    lastModifiedVersion?: number;
+  }> {
+    const body = JSON.stringify(itemKeys.map((key) => ({ key })));
+    const path = `${prefix}/collections/${collectionKey}/items`;
+    const res = await this.request(path, {
+      method: 'POST',
+      body,
+      contentType: 'application/json',
+      ifUnmodifiedSinceVersion: libraryVersion,
+    });
+    return {
+      status: res.status,
+      text: res.text,
+      lastModifiedVersion: res.lastModifiedVersion,
+    };
+  }
+
+  /** Autorisation d’upload pour pièce jointe `imported_file`. */
+  async postItemFileAuthorization(
+    prefix: string,
+    itemKey: string,
+    fields: {
+      md5: string;
+      filename: string;
+      filesize: number;
+      mtime: number;
+    }
+  ): Promise<{ status: number; text: string }> {
+    const body = new URLSearchParams({
+      md5: fields.md5,
+      filename: fields.filename,
+      filesize: String(fields.filesize),
+      mtime: String(fields.mtime),
+    }).toString();
+    const path = `${prefix}/items/${itemKey}/file`;
+    const res = await this.request(path, {
+      method: 'POST',
+      body,
+      contentType: 'application/x-www-form-urlencoded',
+      extraHeaders: { 'If-None-Match': '*' },
+    });
+    return { status: res.status, text: res.text };
+  }
+
+  async registerItemFileUpload(
+    prefix: string,
+    itemKey: string,
+    uploadKey: string
+  ): Promise<{ status: number; text: string; lastModifiedVersion?: number }> {
+    const body = new URLSearchParams({ upload: uploadKey }).toString();
+    const path = `${prefix}/items/${itemKey}/file`;
+    const res = await this.request(path, {
+      method: 'POST',
+      body,
+      contentType: 'application/x-www-form-urlencoded',
+      extraHeaders: { 'If-None-Match': '*' },
+    });
+    return {
+      status: res.status,
+      text: res.text,
+      lastModifiedVersion: res.lastModifiedVersion,
+    };
+  }
+
+  /** POST multipart (prefix + fichier + suffix) vers l’URL S3 de Zotero. */
+  async uploadFilePayload(
+    url: string,
+    contentType: string,
+    body: ArrayBuffer
+  ): Promise<{ status: number }> {
+    const res = await requestUrl({
+      url,
+      method: 'POST',
+      headers: { 'Content-Type': contentType },
+      body,
+      throw: false,
+    });
+    return { status: res.status };
   }
 }
 

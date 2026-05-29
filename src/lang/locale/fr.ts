@@ -315,4 +315,195 @@ export default {
   'One line per merged group: numeric ID and display name (or ID=name). Shown in the library panel and collections; overrides names from Load groups when set.':
     'Une ligne par groupe : ID numérique puis libellé, ou ID=nom. Affiché dans le panneau et les collections ; remplace les noms issus de « Charger les groupes ».',
   'Could not open file': 'Impossible d’ouvrir le fichier',
+  Preferences: 'Préférences',
+  'Document annotations': 'Annotations du document',
+  'Search document annotations': 'Rechercher dans les annotations',
+  Refresh: 'Actualiser',
+  'Highlight selection in PDF': 'Surligner la sélection (PDF)',
+  'Search Zotero annotations': 'Rechercher dans les annotations Zotero',
+  'Document annotations panel': 'Panneau annotations du document',
+  'Show PandoCit panel': 'Afficher le panneau PandoCit',
+  'PDF open mode': 'Ouverture des PDF',
+  'EPUB open mode': 'Ouverture des EPUB',
+  'Ask each time': 'Demander à chaque fois',
+  'Open PDF with': 'Ouvrir le PDF avec',
+  'Open EPUB with': 'Ouvrir l’EPUB avec',
+  'Unsupported document type': 'Type de document non pris en charge',
+  'File must be in the vault for PandoCit reader':
+    'Le fichier doit être dans le coffre pour le lecteur PandoCit',
+  'EPUB not found in vault': 'EPUB introuvable dans le coffre',
+  'PDF reader': 'Lecteur PDF',
+  'EPUB reader': 'Lecteur EPUB',
+  'Highlight mode': 'Mode surlignage',
+  'Highlight mode on': 'Mode surlignage activé',
+  'Highlight mode off': 'Mode surlignage désactivé',
+  'Save PDF annotations': 'Enregistrer les annotations PDF',
+  'Reload PDF': 'Recharger le PDF',
+  'PDF not found in vault': 'PDF introuvable dans le coffre',
+  'No highlights to save': 'Aucun surlignage à enregistrer',
+  'PDF saved with highlights': 'PDF enregistré avec surlignages',
+  'Failed to save PDF': 'Échec de l’enregistrement du PDF',
+  'PandoCit PDF reader is desktop-only':
+    'Le lecteur PDF PandoCit est disponible sur ordinateur uniquement',
+  'EPUB reader failed to initialize': 'Échec d’initialisation du lecteur EPUB',
+  'Highlight selection (in reader)': 'Surligner la sélection (dans le lecteur)',
+  'Select text in the EPUB reader, then release the mouse to save a highlight.':
+    'Sélectionnez du texte dans le lecteur EPUB, puis relâchez la souris pour enregistrer un surlignage.',
+  'Reload EPUB': 'Recharger l’EPUB',
+  'Previous page': 'Page précédente',
+  'Next page': 'Page suivante',
+  'Highlight saved to sidecar': 'Surlignage enregistré dans le fichier annexe',
+  'Open a document in PandoCit reader first':
+    'Ouvrez d’abord un document dans le lecteur PandoCit',
+  'Open a PDF or EPUB with PandoCit reader to see annotations here.':
+    'Ouvrez un PDF ou un EPUB avec le lecteur PandoCit pour voir les annotations ici.',
+  'No annotations for this document yet.':
+    'Aucune annotation pour ce document.',
+  'Import Hypothesis': 'Importer Hypothesis',
+  'Export to Hypothesis': 'Exporter vers Hypothesis',
+  'Hypothesis API token': 'Jeton API Hypothesis',
+  'Hypothesis group': 'Groupe Hypothesis',
+  'Optional token for Hypothesis import/export':
+    'Jeton optionnel pour l’import/export Hypothesis',
+  'Set Hypothesis API token in settings':
+    'Renseignez le jeton API Hypothesis dans les réglages',
+  'Hypothesis import failed': 'Échec de l’import Hypothesis',
+  'Hypothesis annotations imported': 'Annotations Hypothesis importées',
+  Imported: 'Importé',
+  'Exported to Hypothesis': 'Exporté vers Hypothesis',
+  'Go to': 'Aller à',
+  'Quick settings — open full settings for all options.':
+    'Réglages rapides — ouvrez l’onglet complet pour toutes les options.',
+  'Open all plugin settings': 'Ouvrir tous les réglages du plugin',
+  'No matching annotations': 'Aucune annotation correspondante',
+  'No Zotero annotations in library':
+    'Aucune annotation Zotero dans la bibliothèque',
+  'Type to search all Zotero annotations':
+    'Saisissez un texte pour parcourir toutes les annotations Zotero',
+  'Attachment not found for annotation':
+    'Pièce jointe introuvable pour cette annotation',
+  'No file path for this annotation':
+    'Aucun chemin de fichier pour cette annotation',
+  'Failed to open PDF — see console':
+    'Impossible d’ouvrir le PDF — voir la console',
+  'Open a PDF file from the vault.':
+    'Ouvrez un fichier PDF du coffre.',
+  'Open an EPUB file from the vault.':
+    'Ouvrez un fichier EPUB du coffre.',
+  'Open current file with PandoCit reader':
+    'Ouvrir le fichier actif avec le lecteur PandoCit',
+  'No active file': 'Aucun fichier actif',
+  'Copy annotation reference': 'Copier la référence',
+  'Annotation reference copied': 'Référence copiée',
+  'Copy failed': 'Échec de la copie',
+  'Show annotations for this document':
+    'Voir les annotations de ce document',
+  'Annotations for document': 'Annotations du document',
+  'Clear document filter': 'Effacer le filtre document',
+  'No annotations for this document': 'Aucune annotation pour ce document',
+  'No vault path for this annotation':
+    'Aucun chemin dans le coffre pour cette annotation',
+  'Highlight with last settings': 'Surligner (derniers réglages)',
+  'Highlight with options…': 'Surligner avec options…',
+  'Highlight style highlight': 'surlignage',
+  'Highlight style underline': 'soulignement',
+  'Highlight style strikeout': 'barré',
+  'Highlight style squiggly': 'vague',
+  'Highlight target pdf': 'PDF uniquement',
+  'Highlight target zotero': 'Zotero uniquement',
+  'Highlight target both': 'PDF + Zotero',
+  'Copy selection': 'Copier',
+  'Highlight quick modal title': 'Surligner la sélection',
+  'Highlight quick modal hint':
+    'Le style et la destination reprennent vos derniers réglages. Laissez le commentaire vide pour un simple surlignage.',
+  'Optional comment placeholder': 'Commentaire (optionnel)…',
+  'Save highlight': 'Enregistrer',
+  'Vault PDF import title': 'Importer un dossier PDF vers Zotero',
+  'Vault folder': 'Dossier du coffre',
+  'Vault folder import desc':
+    'Tous les PDF de ce dossier (récursif), hors exclusions des réglages.',
+  'Browse folders': 'Parcourir…',
+  'Scan folder': 'Analyser le dossier',
+  'Scanning PDFs': 'Analyse des PDF…',
+  'Select vault folder': 'Choisir un dossier',
+  'Vault folder required': 'Indiquez un dossier du coffre',
+  'Folder not found in vault': 'Dossier introuvable dans le coffre',
+  'Vault PDF import review': 'Vérifier l’import',
+  'Vault PDF import table hint':
+    'Tableau défilable — modifiez titre, auteur et clé de citation avant l’import.',
+  'Vault PDF import summary':
+    '{found} PDF trouvé(s), {excluded} exclus par les règles, {dup} déjà dans Zotero.',
+  'Short PDF collection hint':
+    'Les PDF de ≤ {n} pages vont dans la collection « courts ».',
+  'Main collection': 'Collection principale (PDF longs)',
+  'Short PDF collection': 'Collection PDF courts',
+  'Attachment mode': 'Mode de pièce jointe',
+  'Link to vault file': 'Lier au fichier du coffre',
+  'Upload to Zotero': 'Téléverser dans Zotero',
+  File: 'Fichier',
+  Author: 'Auteur',
+  Citekey: 'Clé de citation',
+  Status: 'Statut',
+  'Already in Zotero': 'Déjà dans Zotero',
+  New: 'Nouveau',
+  Error: 'Erreur',
+  'Select all new': 'Tout sélectionner (nouveaux)',
+  'Import selected': 'Importer la sélection',
+  Back: 'Retour',
+  'Importing to Zotero': 'Import vers Zotero…',
+  'No PDFs selected for import': 'Aucun PDF sélectionné',
+  'Vault PDF import done':
+    'Import terminé : {created} créé(s), {failed} échec(s), {skipped} ignoré(s).',
+  'Import vault PDF folder': 'Importer dossier PDF',
+  'Import vault PDF folder to Zotero': 'Importer un dossier PDF vers Zotero',
+  'Enable Zotero Web API in settings':
+    'Activez l’API Web Zotero dans les réglages du plugin',
+  'No collection': '(aucune collection)',
+  'Vault PDF import settings': 'Import dossier PDF',
+  'Short PDF max pages': 'Seuil pages (PDF court)',
+  'Exclude folder globs': 'Dossiers exclus (motifs)',
+  'Exclude folder globs desc':
+    'Un motif par ligne (ex. Archives/**, **/brouillons).',
+  'Metadata regex pattern': 'Regex métadonnées (nom de fichier)',
+  'Metadata regex desc':
+    'Groupes nommés : author, title, citekey. Ex. ^(?<author>.+?) - (?<title>.+?)\\.pdf$ — sinon clé auto : nomAuteur + année + initiales du titre (ex. dupont2024dln).',
+  'Default attachment mode': 'Mode pièce jointe par défaut',
+  'Default documents folder': 'Dossier documents par défaut',
+  'Default documents folder desc':
+    'Les PDF de ce dossier et de ses sous-dossiers sont proposés au lancement de l’import. Les exclusions s’appliquent toujours.',
+  'Choose folder': '— Choisir un dossier —',
+  'Exclude path regex': 'Exclure les chemins (regex)',
+  'Exclude path regex desc':
+    'Optionnel. Tout chemin du coffre qui correspond à cette regex est ignoré (en plus des motifs de dossiers).',
+  'Active import filters': 'Filtres actifs pour cet import',
+  'Filter examples title': 'Exemples de filtres',
+  'Filter examples settings hint':
+    'Les boutons ci-dessous remplissent les champs du dessus (vous pouvez les modifier ensuite).',
+  'Filter examples modal hint':
+    'Pour modifier ces filtres : Réglages du plugin → API Zotero → Import dossier PDF.',
+  'Filter examples globs intro':
+    'Un motif par ligne. ** = segments de dossier ; chemins avec /.',
+  'Filter examples path regex intro':
+    'Correspond au chemin complet du fichier dans le coffre (slashes /).',
+  'Insert example globs': 'Ajouter les motifs d’exemple',
+  'Insert example path regex': 'Utiliser la regex d’exemple',
+  'Use this metadata regex': 'Utiliser ce motif',
+  'Filter examples added': 'Exemple appliqué — vérifiez les champs ci-dessus.',
+  'Filter example metadata intro':
+    'Extraction à partir du nom de fichier avec groupes nommés author et title.',
+  'Filter example sample filenames': 'Exemples de noms de fichier :',
+  'Filter example regex': 'Regex à utiliser :',
+  'Filter preview extensions': 'Fichiers : {ext}',
+  'Filter preview short pages': 'Seuil PDF court : ≤ {n} pages',
+  'Filter preview exclude globs': 'Motifs de dossiers exclus',
+  'Filter preview no exclude globs': 'Aucun motif d’exclusion de dossier',
+  'Filter preview path regex': 'Regex de chemin',
+  'Filter preview metadata regex': 'Regex du nom de fichier',
+  'Filter preview no metadata regex':
+    'Pas de regex (titre dérivé du nom de fichier)',
+  'Filter example metadata dash': 'Auteur - Titre.pdf',
+  'Filter example metadata comma': 'Auteur, Titre.pdf',
+  'Filter example metadata year dash': 'YYYY - Auteur - Titre.pdf',
+  'Filter example metadata brackets author': '[Auteur] Titre.pdf',
 };
+

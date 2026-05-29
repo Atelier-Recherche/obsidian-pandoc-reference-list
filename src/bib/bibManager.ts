@@ -15,8 +15,8 @@ import {
   PromiseCapability,
   copyElToClipboard,
   getVaultRoot,
-  openPdfAbsolutePathInObsidianOrExternal,
 } from 'src/helpers';
+import { openPdfForPlugin } from 'src/readers/openDocument';
 import {
   RenderedCitation,
   getCitationSegments,
@@ -939,7 +939,8 @@ export class BibManager {
                 setIcon(div, 'lucide-file-text');
                 div.setAttr('aria-label', getPath().parse(link).base);
                 div.onClickEvent(() => {
-                  openPdfAbsolutePathInObsidianOrExternal(
+                  void openPdfForPlugin(
+                    this.plugin,
                     link,
                     file.path,
                     undefined,

@@ -672,6 +672,36 @@ body.pwc-cite-tap-mode .pwc-tooltip {
   margin-bottom: 0.5rem;
 }
 
+.pwc-zotero-library__ann-doc-filter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.pwc-zotero-library__ann-doc-filter-clear {
+  font-size: var(--font-ui-smaller);
+  font-weight: normal;
+  color: var(--text-muted);
+  background: none;
+  border: none;
+  box-shadow: none;
+  padding: 0;
+  margin: 0;
+  min-height: unset;
+  height: auto;
+  line-height: inherit;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.pwc-zotero-library__ann-doc-filter-clear:hover {
+  color: var(--text-normal);
+  background: none;
+}
+
 .pwc-zotero-library__pdf-strip {
   width: 100%;
   flex-basis: 100%;
@@ -753,4 +783,683 @@ body.pwc-cite-tap-mode .pwc-tooltip-cite-btn {
 
 .pwc-tooltip-cite-btn:hover {
   background: var(--background-modifier-hover);
+}
+
+/* —— Shell (unified panel) —— */
+.pwc-shell {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+
+.pwc-shell__tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.15rem;
+  padding: 0.35rem 0.4rem;
+  border-bottom: 1px solid var(--background-modifier-border);
+  flex-shrink: 0;
+}
+
+.pwc-shell__tab {
+  font-size: var(--font-ui-smaller);
+  padding: 0.25rem 0.45rem;
+  border-radius: var(--radius-s);
+  background: transparent;
+  color: var(--text-muted);
+  border: none;
+  cursor: pointer;
+}
+
+.pwc-shell__tab.is-active {
+  background: var(--background-modifier-hover);
+  color: var(--text-normal);
+  font-weight: 600;
+}
+
+.pwc-shell__panels {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.pwc-shell__panel {
+  display: none;
+  flex: 1 1 auto;
+  min-height: 0;
+  height: 100%;
+  overflow: hidden;
+}
+
+.pwc-shell__panel.is-active {
+  display: flex;
+  flex-direction: column;
+}
+
+.pwc-shell__panel--references,
+.pwc-shell__panel--zotero,
+.pwc-shell__panel--document-annotations {
+  overflow-y: auto;
+}
+
+.pwc-zotero-library__ann-search-label {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: var(--font-ui-smaller);
+  margin-top: 0.35rem;
+  color: var(--text-muted);
+}
+
+/* —— PDF reader —— */
+.pwc-pdf-reader {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.pwc-pdf-reader__toolbar {
+  display: flex;
+  gap: 0.25rem;
+  padding: 0.35rem;
+  border-bottom: 1px solid var(--background-modifier-border);
+  flex-shrink: 0;
+  align-items: center;
+}
+
+.pwc-pdf-reader__scroll {
+  flex: 1;
+  overflow: auto;
+  position: relative;
+  min-height: 0;
+}
+
+.pwc-pdf-reader__iframe {
+  width: 100%;
+  height: 100%;
+  border: 0;
+  background: var(--background-primary);
+}
+
+.pwc-zotero-overlay-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 50;
+}
+
+.pwc-zotero-overlay-rect {
+  position: absolute;
+  opacity: 0.25;
+  border-radius: 2px;
+  mix-blend-mode: multiply;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.15);
+  cursor: pointer;
+}
+
+.pwc-zotero-popup-wrapper {
+  position: absolute;
+  z-index: 60;
+  transform: translate(0, -100%);
+  pointer-events: auto;
+}
+
+.pwc-zotero-popup-wrapper .popup {
+  background: var(--background-primary);
+  color: var(--text-normal);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+  min-width: 220px;
+  max-width: 420px;
+  padding: 10px 12px;
+}
+
+.pwc-zotero-popup-wrapper .popupContent {
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.pwc-zotero-popup-wrapper .popupMeta {
+  margin-top: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  opacity: 0.8;
+  font-size: 12px;
+}
+
+.pwc-pdf-highlight-toolbar-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  margin-left: 0.25rem;
+  vertical-align: middle;
+  pointer-events: auto;
+}
+
+.pwc-pdfjs-container {
+  position: absolute;
+  inset: 0;
+  overflow: auto;
+}
+
+.pwc-pdfjs-viewer {
+  position: relative;
+}
+
+.pwc-pdf-reader__page-wrap {
+  position: relative;
+  margin: 0.5rem auto;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.15);
+}
+
+.pwc-pdf-reader__overlay {
+  position: absolute;
+  left: 0;
+  top: 0;
+  pointer-events: auto;
+  z-index: 3;
+}
+
+.pwc-pdf-reader__text-layer {
+  position: absolute;
+  left: 0;
+  top: 0;
+  z-index: 2;
+  color: transparent;
+  user-select: text;
+}
+
+.pwc-pdf-reader__text-layer > span {
+  position: absolute;
+  white-space: pre;
+  transform-origin: 0% 0%;
+  color: transparent;
+}
+
+.pwc-pdf-reader__hl {
+  position: absolute;
+  opacity: 0.4;
+  pointer-events: none;
+}
+
+.pwc-pdf-reader__hl--draft {
+  border: 1px dashed var(--text-accent);
+  background: rgba(255, 235, 59, 0.25);
+}
+
+.pwc-pdf-reader__page-info {
+  margin-left: auto;
+  font-size: var(--font-ui-small);
+  color: var(--text-muted);
+}
+
+.pwc-pdf-reader__page-input {
+  width: 4.5rem;
+}
+
+/* —— EPUB reader —— */
+.pwc-epub-reader {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.pwc-epub-reader__toolbar {
+  display: flex;
+  gap: 0.25rem;
+  padding: 0.35rem;
+  border-bottom: 1px solid var(--background-modifier-border);
+  flex-shrink: 0;
+}
+
+.pwc-epub-reader__host {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.pwc-epub-reader__iframe,
+.pwc-epub-reader__view {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+}
+
+.pwc-epub-reader__iframe {
+  border: 0;
+  background: var(--background-primary);
+}
+
+/* —— Document annotations tab —— */
+.pwc-doc-annotations__head {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.35rem 0.5rem;
+  border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.pwc-doc-annotations__search {
+  flex: 1;
+  min-width: 0;
+  padding: 0.35rem 0.5rem;
+  font-size: var(--font-ui-small);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-s);
+  background: var(--background-primary);
+  color: var(--text-normal);
+}
+
+.pwc-doc-annotations__search:focus {
+  border-color: var(--interactive-accent);
+  outline: none;
+}
+
+.pwc-doc-annotations__actions {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 0.1rem;
+  flex-shrink: 0;
+}
+
+.pwc-doc-annotations__list {
+  padding: 0.35rem;
+}
+
+.pwc-doc-annotations__row {
+  padding: 0.4rem 0;
+  border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.pwc-doc-annotations__badge {
+  font-size: var(--font-ui-smaller);
+  color: var(--text-muted);
+  text-transform: uppercase;
+}
+
+.pwc-doc-annotations__text {
+  font-size: var(--font-ui-small);
+  margin: 0.2rem 0;
+}
+
+.pwc-doc-annotations__row-actions {
+  display: flex;
+  gap: 0.35rem;
+  margin-top: 0.25rem;
+}
+
+.pwc-open-mode-modal__row {
+  display: flex;
+  gap: 0.5rem;
+  margin: 0.75rem 0;
+}
+
+.pwc-pdf-comment-modal--quick .pwc-pdf-comment-modal__prefs {
+  margin: 0.25rem 0 0.5rem;
+  font-size: var(--font-ui-small);
+  opacity: 0.85;
+}
+
+.pwc-pdf-comment-modal--quick .pwc-pdf-comment-modal__hint {
+  margin: 0 0 0.5rem;
+  font-size: var(--font-ui-smaller);
+  opacity: 0.7;
+}
+
+.pwc-pdf-comment-modal .pwc-pdf-comment-textarea {
+  display: block;
+  width: 100%;
+  margin: 0.5rem 0 1rem;
+  padding: 0.5rem 0.65rem;
+  font-size: var(--font-ui-medium);
+  line-height: 1.4;
+  resize: vertical;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-s);
+  background: var(--background-primary);
+  color: var(--text-normal);
+}
+
+.pwc-pdf-comment-modal .pwc-pdf-comment-textarea:focus {
+  border-color: var(--interactive-accent);
+  outline: none;
+}
+
+/* Coque Obsidian : largeur bornée, contenu qui ne pousse plus la fenêtre */
+.modal.pwc-vault-pdf-import-modal-shell {
+  width: min(880px, calc(100vw - 2rem)) !important;
+  max-width: calc(100vw - 2rem) !important;
+}
+
+.pwc-vault-pdf-import-modal-shell .modal-content {
+  width: 100% !important;
+  max-width: 100% !important;
+  overflow: hidden;
+  box-sizing: border-box;
+  padding: 1rem 1.15rem 1.15rem;
+}
+
+.pwc-vault-pdf-import-modal {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  min-height: 0;
+  max-height: min(88vh, 860px);
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+.pwc-vault-pdf-import-modal > h2 {
+  flex-shrink: 0;
+  margin: 0 0 0.25rem;
+}
+
+.pwc-vault-pdf-import-modal__body {
+  flex: 1 1 auto;
+  min-height: 0;
+  min-width: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+.pwc-vault-pdf-import-modal__actions {
+  flex-shrink: 0;
+  flex-wrap: wrap;
+  margin-top: 0.35rem;
+}
+
+.pwc-vault-pdf-import-field {
+  margin-bottom: 0.85rem;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.pwc-vault-pdf-import-field__name {
+  font-weight: 600;
+  font-size: var(--font-ui-medium);
+  margin-bottom: 0.2rem;
+}
+
+.pwc-vault-pdf-import-field__desc {
+  font-size: var(--font-ui-small);
+  opacity: 0.85;
+  margin-bottom: 0.35rem;
+  line-height: 1.35;
+}
+
+.pwc-vault-pdf-import-field__control {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.pwc-vault-pdf-import-field__control select.dropdown {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.pwc-vault-pdf-import-modal__filters {
+  margin-top: 0.25rem;
+  max-height: min(38vh, 320px);
+  overflow-x: hidden;
+  overflow-y: auto;
+  min-width: 0;
+}
+
+.pwc-vault-pdf-import-modal--review .pwc-vault-pdf-import-modal__body {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.pwc-vault-pdf-import-modal--review .pwc-vault-pdf-import-modal__options {
+  flex-shrink: 0;
+}
+
+.pwc-vault-pdf-import-table-label {
+  flex-shrink: 0;
+  margin: 0.5rem 0 0.25rem;
+  font-size: var(--font-ui-smaller);
+  opacity: 0.75;
+}
+
+.pwc-vault-pdf-import-table-wrap {
+  width: 100%;
+  max-width: 100%;
+  max-height: min(42vh, 400px);
+  overflow: auto;
+  margin: 0.75rem 0 0.25rem;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-s);
+  -webkit-overflow-scrolling: touch;
+  scrollbar-gutter: stable both-edges;
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb-bg, var(--background-modifier-border-hover))
+    var(--scrollbar-bg, var(--background-modifier-form-field));
+}
+
+.pwc-vault-pdf-import-modal--review .pwc-vault-pdf-import-table-wrap {
+  flex: 1 1 auto;
+  min-height: 12rem;
+  max-height: none;
+  overflow: scroll;
+  margin-bottom: 0;
+}
+
+.pwc-vault-pdf-import-table-wrap::-webkit-scrollbar {
+  width: 11px;
+  height: 11px;
+}
+
+.pwc-vault-pdf-import-table-wrap::-webkit-scrollbar-track {
+  background: var(--scrollbar-bg, var(--background-modifier-form-field));
+  border-radius: var(--radius-s);
+}
+
+.pwc-vault-pdf-import-table-wrap::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb-bg, var(--background-modifier-border-hover));
+  border-radius: 6px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+.pwc-vault-pdf-import-table-wrap::-webkit-scrollbar-thumb:hover {
+  background: var(
+    --scrollbar-active-thumb-bg,
+    var(--interactive-accent)
+  );
+  background-clip: padding-box;
+}
+
+.pwc-vault-pdf-import-table {
+  width: max-content;
+  min-width: 100%;
+  border-collapse: collapse;
+  font-size: var(--font-ui-small);
+}
+
+.pwc-vault-pdf-import-table th,
+.pwc-vault-pdf-import-table td {
+  padding: 0.35rem 0.5rem;
+  border-bottom: 1px solid var(--background-modifier-border);
+  vertical-align: middle;
+  max-width: 12rem;
+}
+
+.pwc-vault-pdf-import-table th:first-child,
+.pwc-vault-pdf-import-table td:first-child {
+  max-width: 2rem;
+  width: 2rem;
+}
+
+.pwc-vault-pdf-import-table tr.is-duplicate {
+  opacity: 0.55;
+}
+
+.pwc-vault-pdf-import-table tr.is-error {
+  color: var(--text-error);
+}
+
+.pwc-vault-pdf-import-table input[type='text'] {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.pwc-vault-pdf-import-file {
+  max-width: 9rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pwc-vault-pdf-import-summary,
+.pwc-vault-pdf-import-threshold-hint {
+  font-size: var(--font-ui-small);
+  opacity: 0.85;
+  margin-bottom: 0.5rem;
+}
+
+.pwc-vault-pdf-import-progress {
+  margin: 1rem 0;
+  font-size: var(--font-ui-medium);
+}
+
+/* Réglages plugin : import PDF → Zotero (champs empilés) */
+.pwc-vault-pdf-import-settings.setting-item {
+  flex-direction: column;
+  align-items: stretch;
+  max-width: 100%;
+  min-width: 0;
+  overflow-x: hidden;
+}
+
+.pwc-vault-pdf-import-settings .setting-item-control {
+  flex-direction: column;
+  align-items: stretch;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  overflow-x: hidden;
+}
+
+.pwc-vault-pdf-import-settings__fields {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  width: 100%;
+  max-width: 100%;
+}
+
+.pwc-vault-pdf-import-settings__field {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  width: 100%;
+}
+
+.pwc-vault-pdf-import-settings__field .setting-item-name {
+  display: block;
+  margin-bottom: 0.25rem;
+}
+
+.pwc-vault-pdf-import-settings__field .setting-item-description {
+  margin: 0 0 0.35rem;
+  opacity: 0.85;
+}
+
+.pwc-vault-pdf-import-settings__field .pwc-zotero-edit-input,
+.pwc-vault-pdf-import-settings__field textarea,
+.pwc-vault-pdf-import-settings__select {
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.pwc-vault-pdf-import-settings__examples-host {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  overflow-x: hidden;
+}
+
+.pwc-vault-pdf-import-filter-preview {
+  margin-bottom: 0.75rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: var(--radius-s);
+  background: var(--background-modifier-form-field);
+  font-size: var(--font-ui-small);
+  max-width: 100%;
+  overflow-x: hidden;
+  word-break: break-word;
+  box-sizing: border-box;
+}
+
+.pwc-vault-pdf-import-filter-preview ul {
+  margin: 0.35rem 0 0;
+  padding-left: 1.25rem;
+}
+
+.pwc-vault-pdf-import-filter-examples {
+  margin-top: 0.5rem;
+  font-size: var(--font-ui-small);
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+.pwc-vault-pdf-import-filter-examples summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.pwc-vault-pdf-import-filter-examples__body {
+  margin-top: 0.5rem;
+}
+
+.pwc-vault-pdf-import-filter-examples__hint {
+  opacity: 0.85;
+  margin: 0 0 0.5rem;
+}
+
+.pwc-vault-pdf-import-filter-examples__block {
+  margin-bottom: 0.75rem;
+}
+
+.pwc-vault-pdf-import-filter-examples__block h4 {
+  margin: 0 0 0.25rem;
+  font-size: var(--font-ui-small);
+}
+
+.pwc-vault-pdf-import-filter-examples__meta-samples {
+  margin: 0.35rem 0;
+  padding-left: 1.1rem;
+}
+
+.pwc-vault-pdf-import-filter-examples__code {
+  margin: 0.35rem 0;
+  padding: 0.5rem 0.65rem;
+  border-radius: var(--radius-s);
+  background: var(--background-modifier-border);
+  font-size: var(--font-ui-smaller);
+  white-space: pre-wrap;
+  word-break: break-word;
+  overflow-x: auto;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.pwc-vault-pdf-import-filter-examples__block button {
+  margin-top: 0.25rem;
 }

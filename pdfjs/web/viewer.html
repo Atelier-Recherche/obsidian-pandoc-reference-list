@@ -1,0 +1,34 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>PandoCit PDF</title>
+  <link rel="stylesheet" href="./pdf_viewer.css" />
+  <style>
+    html, body { margin: 0; height: 100%; overflow: hidden; }
+    #app { display: flex; flex-direction: column; height: 100%; }
+    #toolbar { display: flex; gap: 8px; align-items: center; padding: 6px 8px; border-bottom: 1px solid #8883; }
+    #viewerContainer { flex: 1; overflow: auto; position: relative; }
+    #viewer { position: relative; }
+    input[type="number"] { width: 72px; }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <div id="toolbar">
+      <button id="prev">Prev</button>
+      <button id="next">Next</button>
+      <span id="pageInfo">1 / 1</span>
+      <input id="pageInput" type="number" min="1" step="1" value="1" />
+      <button id="go">Go</button>
+      <button id="zoomOut">-</button>
+      <button id="zoomIn">+</button>
+    </div>
+    <div id="viewerContainer">
+      <div id="viewer" class="pdfViewer"></div>
+    </div>
+  </div>
+  <script type="module" src="./viewer.js"></script>
+</body>
+</html>

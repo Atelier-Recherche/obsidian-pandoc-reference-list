@@ -1,11 +1,4 @@
-import {
-  ItemView,
-  Modal,
-  Notice,
-  Setting,
-  WorkspaceLeaf,
-  setIcon,
-} from 'obsidian';
+import { Modal, Notice, Setting, setIcon } from 'obsidian';
 import Fuse from 'fuse.js';
 import { langListRaw } from './bib/cslLangList';
 import { matchStoredLanguageToCslLocale } from './bib/zoteroLangNormalize';
@@ -15,8 +8,10 @@ import {
   insertTextInActiveMarkdownNote,
   isAbsoluteFilesystemPath,
   normalizeVaultRelativePath,
-  openPdfAbsolutePathInObsidianOrExternal,
 } from './helpers';
+import { openVaultPdfImportModal } from './zoteroImport/VaultPdfImportModal';
+import { resolveVaultPdfAbsolutePath } from './zoteroApi/vaultPaths';
+import { openDocumentFromPlugin, openPdfForPlugin } from './readers/openDocument';
 import { t } from './lang/helpers';
 import {
   displayCitekeyForLibrary,
@@ -29,11 +24,20 @@ import { getZoteroExtraEditableFields } from './zoteroApi/zoteroItemExtraFields'
 import type { StoredZoteroItem, ZoteroStoreSnapshot } from './zoteroApi/types';
 import {
   mergeUserAndGroupSnapshots,
+  parseStorageItemKey,
   zoteroUriForStorageKey,
 } from './zoteroApi/zoteroMerge';
 import { getPath, isDesktop } from './platformAdapter';
 import { itemTypeBadgeLabel } from './zoteroItemTypeBadge';
+import {
+  copyAnnotationReferenceNotice,
+  formatZoteroAnnotationRowReference,
+  resolveVaultPathForZoteroAttachment,
+} from './annotations/annotationReference';
+import { buildAnnotationRowsFromSnapshot } from './annotations/zoteroAnnotationIndex';
+import type { ZoteroAnnotationRow } from './annotations/types';
 
+/** @deprecated Legacy view type — migrated to shell */
 export const zoteroLibraryViewType = 'pwc-zotero-library-view';
 
 type RowFlat = {
@@ -106,22 +110,27 @@ function rowTitle(st: StoredZoteroItem): string {
   return st.key;
 }
 
-export class ZoteroLibraryView extends ItemView {
+export class ZoteroLibraryPanel {
   plugin: ReferenceList;
   private rootEl: HTMLElement;
   private listEl: HTMLElement;
-  private filterInput: HTMLInputElement;
+  filterInput: HTMLInputElement;
+  searchAnnotationsToggle: HTMLInputElement;
   private fuse: Fuse<RowFlat> | null = null;
+  private annFuse: Fuse<ZoteroAnnotationRow> | null = null;
   private flatRows: RowFlat[] = [];
+  private annRows: ZoteroAnnotationRow[] = [];
   private treeRoots: ItemTreeNode[] = [];
   /** Pièces jointes par clé parent (vue liste / recherche plate) */
   private attachmentChildrenByParent = new Map<string, StoredZoteroItem[]>();
+  private annotationFilterAttachmentKey: string | null = null;
+  private annotationFilterAttachmentLabel = '';
 
-  constructor(leaf: WorkspaceLeaf, plugin: ReferenceList) {
-    super(leaf);
+  constructor(host: HTMLElement, plugin: ReferenceList) {
     this.plugin = plugin;
-    this.contentEl.addClass('pwc-zotero-library');
-    this.rootEl = this.contentEl.createDiv({
+    host.empty();
+    host.addClass('pwc-zotero-library');
+    this.rootEl = host.createDiv({
       cls: 'pwc-zotero-library__inner',
     });
     const headingRow = this.rootEl.createDiv({
@@ -142,11 +151,20 @@ export class ZoteroLibraryView extends ItemView {
       cls: 'pwc-zotero-library__filter',
       attr: { placeholder: t('Filter references…') },
     });
+    const annLabel = searchWrap.createEl('label', {
+      cls: 'pwc-zotero-library__ann-search-label',
+    });
+    this.searchAnnotationsToggle = annLabel.createEl('input', {
+      type: 'checkbox',
+    });
+    annLabel.createSpan({ text: t('Search Zotero annotations') });
     let debounceTimer = 0;
-    this.filterInput.addEventListener('input', () => {
+    const scheduleRender = () => {
       window.clearTimeout(debounceTimer);
       debounceTimer = window.setTimeout(() => this.render(), 120);
-    });
+    };
+    this.filterInput.addEventListener('input', scheduleRender);
+    this.searchAnnotationsToggle.addEventListener('change', scheduleRender);
 
     const syncBtn = headActions.createEl('button', {
       cls: 'clickable-icon pwc-zotero-library__head-btn',
@@ -166,6 +184,19 @@ export class ZoteroLibraryView extends ItemView {
       } finally {
         syncBtn.disabled = false;
       }
+    });
+
+    const importPdfBtn = headActions.createEl('button', {
+      cls: 'clickable-icon pwc-zotero-library__head-btn',
+      attr: {
+        type: 'button',
+        'aria-label': t('Import vault PDF folder'),
+        title: t('Import vault PDF folder'),
+      },
+    });
+    setIcon(importPdfBtn, 'folder-input');
+    importPdfBtn.addEventListener('click', () => {
+      openVaultPdfImportModal(this.plugin);
     });
 
     const bibBtn = headActions.createEl('button', {
@@ -205,22 +236,6 @@ export class ZoteroLibraryView extends ItemView {
       cls: 'pwc-zotero-library__list pwc-zotero-library__list--tree',
     });
     void this.refreshList();
-  }
-
-  getViewType() {
-    return zoteroLibraryViewType;
-  }
-
-  getDisplayText() {
-    return t('Zotero library');
-  }
-
-  getIcon() {
-    return 'library';
-  }
-
-  async onOpen() {
-    await this.refreshList();
   }
 
   private makeRow(st: StoredZoteroItem): RowFlat {
@@ -452,6 +467,22 @@ export class ZoteroLibraryView extends ItemView {
       this.makeRow(st)
     );
     this.fuse = new Fuse(this.flatRows, fuseOpts);
+    this.annRows = buildAnnotationRowsFromSnapshot(snapMerged);
+    this.annFuse =
+      this.annRows.length > 0
+        ? new Fuse(this.annRows, {
+            keys: [
+              { name: 'annotationText', weight: 0.35 },
+              { name: 'annotationComment', weight: 0.3 },
+              { name: 'parentTitle', weight: 0.15 },
+              { name: 'topItemTitle', weight: 0.1 },
+              { name: 'citekey', weight: 0.05 },
+              { name: 'annotationPageLabel', weight: 0.05 },
+            ],
+            threshold: 0.38,
+            minMatchCharLength: 1,
+          })
+        : null;
 
     this.attachmentChildrenByParent.clear();
     this.fillAttachmentMapFromSnap(snapMerged);
@@ -542,9 +573,14 @@ export class ZoteroLibraryView extends ItemView {
     this.render();
   }
 
-  private render() {
+  render() {
     const q = this.filterInput?.value?.trim() ?? '';
     this.listEl.empty();
+
+    if (this.searchAnnotationsToggle?.checked) {
+      this.renderAnnotationSearch(q);
+      return;
+    }
 
     if (q && this.fuse) {
       const hits = this.fuse.search(q).map((r) => r.item);
@@ -568,6 +604,158 @@ export class ZoteroLibraryView extends ItemView {
     for (const node of this.treeRoots) {
       this.renderTreeNode(node, 0);
     }
+  }
+
+  private annotationCountForAttachment(attachmentKey: string): number {
+    const filterPlain = parseStorageItemKey(attachmentKey).plainKey;
+    return this.annRows.filter((row) => {
+      if (row.parentAttachmentKey === attachmentKey) return true;
+      return (
+        parseStorageItemKey(row.parentAttachmentKey).plainKey === filterPlain
+      );
+    }).length;
+  }
+
+  private filterAnnotationRows(rows: ZoteroAnnotationRow[]): ZoteroAnnotationRow[] {
+    if (!this.annotationFilterAttachmentKey) return rows;
+    const key = this.annotationFilterAttachmentKey;
+    return rows.filter((row) => {
+      if (row.parentAttachmentKey === key) return true;
+      const rowPlain = parseStorageItemKey(row.parentAttachmentKey).plainKey;
+      const filterPlain = parseStorageItemKey(key).plainKey;
+      return rowPlain === filterPlain;
+    });
+  }
+
+  showAnnotationsForAttachment(att: StoredZoteroItem): void {
+    this.annotationFilterAttachmentKey = att.key;
+    this.annotationFilterAttachmentLabel = this.attachmentLinkLabel(att);
+    if (this.searchAnnotationsToggle) {
+      this.searchAnnotationsToggle.checked = true;
+    }
+    this.render();
+  }
+
+  private renderAnnotationSearch(q: string): void {
+    let rows = q
+      ? this.annFuse?.search(q).map((r) => r.item) ?? []
+      : this.annRows.slice(0, 500);
+    rows = this.filterAnnotationRows(rows);
+    if (!rows.length) {
+      this.listEl.createDiv({
+        cls: 'pwc-zotero-library__empty',
+        text: q
+          ? t('No matching annotations')
+          : this.annotationFilterAttachmentKey
+            ? t('No annotations for this document')
+            : t('No Zotero annotations in library'),
+      });
+      return;
+    }
+    if (this.annotationFilterAttachmentKey) {
+      const banner = this.listEl.createDiv({
+        cls: 'pwc-zotero-library__filter-hint pwc-zotero-library__ann-doc-filter',
+      });
+      banner.createSpan({
+        text: `${t('Annotations for document')}: ${this.annotationFilterAttachmentLabel}`,
+      });
+      banner
+        .createEl('button', {
+          cls: 'pwc-zotero-library__ann-doc-filter-clear',
+          attr: { type: 'button' },
+          text: t('Clear document filter'),
+        })
+        .addEventListener('click', () => {
+          this.annotationFilterAttachmentKey = null;
+          this.annotationFilterAttachmentLabel = '';
+          this.render();
+        });
+    } else if (!q) {
+      this.listEl.createDiv({
+        cls: 'pwc-zotero-library__filter-hint',
+        text: t('Type to search all Zotero annotations'),
+      });
+    }
+    for (const row of rows) {
+      const wrap = this.listEl.createDiv({
+        cls: 'pwc-zotero-library__tree-row pwc-zotero-library__tree-row--flat',
+      });
+      const rowEl = wrap.createDiv({ cls: 'pwc-zotero-library__row' });
+      const meta = rowEl.createDiv({ cls: 'pwc-zotero-library__meta' });
+      meta.createDiv({
+        cls: 'pwc-zotero-library__badge',
+        text: t('Badge annotation'),
+      });
+      const excerpt =
+        row.annotationText.replace(/<[^>]+>/g, '').trim().slice(0, 120) ||
+        row.annotationComment.replace(/<[^>]+>/g, '').trim().slice(0, 80) ||
+        row.key;
+      meta.createDiv({ cls: 'pwc-zotero-library__title', text: excerpt });
+      meta.createDiv({
+        cls: 'pwc-zotero-library__citekey',
+        text: `${row.topItemTitle}${row.citekey ? ` · @${row.citekey}` : ''}${
+          row.annotationPageLabel ? ` · p.${row.annotationPageLabel}` : ''
+        }`,
+      });
+      const actions = rowEl.createDiv({ cls: 'pwc-zotero-library__actions' });
+      const copyBtn = actions.createEl('button', {
+        cls: 'clickable-icon',
+        attr: {
+          type: 'button',
+          'aria-label': t('Copy annotation reference'),
+          title: t('Copy annotation reference'),
+        },
+      });
+      setIcon(copyBtn, 'copy');
+      copyBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        void this.copyZoteroAnnotationReference(row);
+      });
+      rowEl.addEventListener('click', () => {
+        void this.openAnnotationTarget(row);
+      });
+    }
+  }
+
+  private async copyZoteroAnnotationReference(
+    row: ZoteroAnnotationRow
+  ): Promise<void> {
+    const vaultPath = await resolveVaultPathForZoteroAttachment(
+      this.plugin,
+      row.parentAttachmentKey
+    );
+    if (!vaultPath) {
+      new Notice(t('No vault path for this annotation'));
+      return;
+    }
+    const text = formatZoteroAnnotationRowReference(row, vaultPath);
+    await copyAnnotationReferenceNotice(text);
+  }
+
+  private async openAnnotationTarget(row: ZoteroAnnotationRow): Promise<void> {
+    const snap = await this.plugin.zoteroSync.loadSnapshot();
+    const parent = snap.items[row.parentAttachmentKey];
+    if (!parent) {
+      new Notice(t('Attachment not found for annotation'));
+      return;
+    }
+    const d = parent.data as Record<string, unknown>;
+    const path =
+      (typeof d.path === 'string' && d.path) ||
+      (typeof d.url === 'string' && d.url) ||
+      '';
+    if (!path) {
+      new Notice(t('No file path for this annotation'));
+      return;
+    }
+    const page = row.annotationPageLabel
+      ? parseInt(row.annotationPageLabel, 10)
+      : undefined;
+    await openDocumentFromPlugin(this.plugin, path, {
+      page: Number.isFinite(page) ? page : undefined,
+      zoteroAnnotationKey: row.key,
+    });
   }
 
   private renderTreeNode(node: ItemTreeNode, depth: number) {
@@ -705,7 +893,13 @@ export class ZoteroLibraryView extends ItemView {
     const abs = this.resolveLinkedLocalPathForOpen(p);
     if (!abs) return;
     const source = this.plugin.app.workspace.getActiveFile()?.path ?? '';
-    openPdfAbsolutePathInObsidianOrExternal(
+    const lower = abs.toLowerCase();
+    if (lower.endsWith('.epub')) {
+      void openDocumentFromPlugin(this.plugin, abs);
+      return;
+    }
+    void openPdfForPlugin(
+      this.plugin,
       abs,
       source,
       null,
@@ -767,6 +961,23 @@ export class ZoteroLibraryView extends ItemView {
         cls: 'pwc-zotero-library__pdf-filename',
         text: this.attachmentLinkLabel(att),
       });
+      const annCount = this.annotationCountForAttachment(att.key);
+      if (annCount > 0) {
+        const annBtn = group.createEl('button', {
+          cls: 'clickable-icon pwc-zotero-library__pdf-icon-btn',
+          attr: {
+            type: 'button',
+            title: `${t('Show annotations for this document')} (${annCount})`,
+            'aria-label': t('Show annotations for this document'),
+          },
+        });
+        setIcon(annBtn, 'highlighter');
+        annBtn.addEventListener('click', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          this.showAnnotationsForAttachment(att);
+        });
+      }
       for (const link of links) {
         if (link.kind === 'zotero') {
           const chip = group.createEl('button', {
@@ -1168,15 +1379,8 @@ class ZoteroItemEditModal extends Modal {
     contentEl: HTMLElement,
     parentItem: StoredZoteroItem
   ): void {
-    const pathMod = getPath();
-    const resolveLinkedPath = (input: string): string => {
-      const v = input.trim();
-      if (!v) return '';
-      if (pathMod.isAbsolute(v)) return pathMod.normalize(v);
-      const root = getVaultRoot();
-      if (!root) return v;
-      return pathMod.join(root, v.replace(/^[/\\]+/, ''));
-    };
+    const resolveLinkedPath = (input: string): string =>
+      resolveVaultPdfAbsolutePath(input);
 
     const wrap = contentEl.createDiv({ cls: 'pwc-zotero-attachments' });
     wrap.createEl('div', {

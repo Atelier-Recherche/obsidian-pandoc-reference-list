@@ -1,3 +1,5 @@
+import './polyfills/mapGetOrInsertComputed';
+
 import {
   Events,
   MarkdownView,
@@ -23,14 +25,25 @@ import {
   ReferenceListSettingsTab,
 } from './settings';
 import { TooltipManager } from './tooltip';
-import { ReferenceListView, viewType } from './view';
-import { ZoteroLibraryView, zoteroLibraryViewType } from './zoteroLibraryView';
+import { viewType as legacyRefViewType } from './view';
+import { zoteroLibraryViewType } from './zoteroLibraryView';
 import { ZoteroSyncService, noticeSyncResult } from './zoteroApi/zoteroSync';
 import { writeBibtexExportToVault } from './zoteroApi/zoteroToBibtex';
 import { PromiseCapability, getVaultRoot } from './helpers';
 import { getPath } from './platformAdapter';
 import { BibManager } from './bib/bibManager';
 import { CiteSuggest } from './citeSuggest/citeSuggest';
+import {
+  PandoCitShellView,
+  shellViewType,
+} from './shell/PandoCitShellView';
+import type { ShellTab } from './shell/types';
+import { legacyViewTypes } from './shell/types';
+import { PdfReaderView, pdfReaderViewType } from './readers/pdf/PdfReaderView';
+import { EpubReaderView, epubReaderViewType } from './readers/epub/EpubReaderView';
+import { registerDocumentOpenRouter } from './readers/documentRouter';
+import { safeRegisterExtensions } from './readers/registerExtensionsSafe';
+import { ZoteroAnnotationIndex } from './annotations/zoteroAnnotationIndex';
 
 export default class ReferenceList extends Plugin {
   settings: ReferenceListSettings;
@@ -39,7 +52,10 @@ export default class ReferenceList extends Plugin {
   cacheDir: string;
   bibManager: BibManager;
   zoteroSync: ZoteroSyncService;
+  zoteroAnnotationIndex: ZoteroAnnotationIndex;
   _initPromise: PromiseCapability<void>;
+  pendingShellTab?: ShellTab;
+  skipFileOpenRoute = false;
 
   get initPromise() {
     if (!this._initPromise) {
@@ -54,15 +70,23 @@ export default class ReferenceList extends Plugin {
     await this.loadSettings();
 
     this.registerView(
-      viewType,
-      (leaf: WorkspaceLeaf) => new ReferenceListView(leaf, this)
+      shellViewType,
+      (leaf: WorkspaceLeaf) => new PandoCitShellView(leaf, this)
     );
     this.registerView(
-      zoteroLibraryViewType,
-      (leaf: WorkspaceLeaf) => new ZoteroLibraryView(leaf, this)
+      pdfReaderViewType,
+      (leaf: WorkspaceLeaf) => new PdfReaderView(leaf, this)
+    );
+    this.registerView(
+      epubReaderViewType,
+      (leaf: WorkspaceLeaf) => new EpubReaderView(leaf, this)
     );
 
+    // PDF : jamais registerExtensions — réservé au viewer Obsidian ; routage via file-open.
+    safeRegisterExtensions(this, ['epub'], epubReaderViewType);
+
     this.zoteroSync = new ZoteroSyncService(this);
+    this.zoteroAnnotationIndex = new ZoteroAnnotationIndex();
     this.cacheDir = getPath().join(getVaultRoot(), '.pandoc');
     this.emitter = new Events();
     this.bibManager = new BibManager(this);
@@ -78,11 +102,14 @@ export default class ReferenceList extends Plugin {
             noticeSyncResult(r, t);
             await this.bibManager.loadGlobalZoteroApi();
           }
+          await this.zoteroAnnotationIndex.refresh(this);
         } else {
           await this.bibManager.loadGlobalBibFile();
         }
       })
       .finally(() => this.bibManager.initPromise.resolve());
+
+    void this.migrateLegacyLeaves();
 
     this.addSettingTab(new ReferenceListSettingsTab(this));
     this.registerEditorSuggest(new CiteSuggest(app, this));
@@ -95,6 +122,8 @@ export default class ReferenceList extends Plugin {
       editorTooltipHandler(this.tooltipManager),
     ]);
 
+    registerDocumentOpenRouter(this);
+
     this.initPromise.resolve();
     this.app.workspace.trigger('parse-style-settings');
 
@@ -102,7 +131,72 @@ export default class ReferenceList extends Plugin {
       id: 'focus-reference-list-view',
       name: t('Show reference list'),
       callback: async () => {
-        this.initLeaf();
+        await this.initShell('references');
+      },
+    });
+
+    this.addCommand({
+      id: 'zotero-library-panel',
+      name: t('Open Zotero library panel'),
+      callback: async () => {
+        await this.initShell('zotero');
+      },
+    });
+
+    this.addCommand({
+      id: 'pwc-document-annotations-panel',
+      name: t('Document annotations panel'),
+      callback: async () => {
+        await this.initShell('document-annotations');
+      },
+    });
+
+    this.addCommand({
+      id: 'pwc-open-with-reader',
+      name: t('Open current file with PandoCit reader'),
+      callback: async () => {
+        const file = this.app.workspace.getActiveFile();
+        if (!file) {
+          new Notice(t('No active file'));
+          return;
+        }
+        const { openInPandocitReader, documentKindForFile } = await import(
+          './readers/documentRouter'
+        );
+        if (!documentKindForFile(file)) {
+          new Notice(t('Unsupported document type'));
+          return;
+        }
+        await openInPandocitReader(this, file);
+      },
+    });
+
+    this.addCommand({
+      id: 'vault-pdf-import-zotero',
+      name: t('Import vault PDF folder to Zotero'),
+      callback: () => {
+        void import('./zoteroImport/VaultPdfImportModal').then(({ openVaultPdfImportModal }) =>
+          openVaultPdfImportModal(this)
+        );
+      },
+    });
+
+    this.addCommand({
+      id: 'zotero-search-annotations',
+      name: t('Search Zotero annotations'),
+      callback: async () => {
+        if (!this.settings.pullFromZoteroApi) {
+          new Notice(t('Enable “Use Zotero Web API” in plugin settings first'));
+          return;
+        }
+        await this.zoteroAnnotationIndex.refresh(this);
+        await this.initShell('zotero');
+        const panel = this.shell?.zoteroPanel;
+        if (panel) {
+          panel.searchAnnotationsToggle.checked = true;
+          panel.filterInput.focus();
+          panel.render();
+        }
       },
     });
 
@@ -116,17 +210,11 @@ export default class ReferenceList extends Plugin {
         }
         const r = await this.zoteroSync.sync();
         noticeSyncResult(r, t);
+        await this.zoteroAnnotationIndex.refresh(this);
         this.bibManager.reinit(true);
         await this.bibManager.initPromise.promise;
         this.processReferences();
-      },
-    });
-
-    this.addCommand({
-      id: 'zotero-library-panel',
-      name: t('Open Zotero library panel'),
-      callback: async () => {
-        await this.initZoteroLibraryLeaf();
+        await this.shell?.zoteroPanel?.refreshList();
       },
     });
 
@@ -197,10 +285,11 @@ export default class ReferenceList extends Plugin {
                 if (leaf.view instanceof MarkdownView) {
                   this.processReferences();
                 } else {
-                  this.view?.setNoContentMessage();
+                  this.shell?.refsPanel.setNoContentMessage();
                 }
               }
             });
+            this.shell?.docPanel?.render();
           },
           100,
           true
@@ -222,13 +311,61 @@ export default class ReferenceList extends Plugin {
 
   onunload() {
     document.body.removeClass('pwc-tooltips', 'pwc-cite-tap-mode');
-    this.app.workspace
-      .getLeavesOfType(viewType)
-      .forEach((leaf) => leaf.detach());
-    this.app.workspace
-      .getLeavesOfType(zoteroLibraryViewType)
-      .forEach((leaf) => leaf.detach());
+    for (const type of [
+      shellViewType,
+      pdfReaderViewType,
+      epubReaderViewType,
+      legacyRefViewType,
+      zoteroLibraryViewType,
+    ]) {
+      this.app.workspace.getLeavesOfType(type).forEach((leaf) => leaf.detach());
+    }
     this.bibManager?.destroy();
+  }
+
+  private async migrateLegacyLeaves(): Promise<void> {
+    const { workspace } = this.app;
+    for (const oldType of legacyViewTypes) {
+      const leaves = workspace.getLeavesOfType(oldType);
+      for (const leaf of leaves) {
+        await leaf.setViewState({ type: shellViewType, active: true });
+      }
+    }
+  }
+
+  get shell(): PandoCitShellView | null {
+    const leaves = this.app.workspace.getLeavesOfType(shellViewType);
+    if (!leaves.length) return null;
+    const v = leaves[0].view;
+    return v instanceof PandoCitShellView ? v : null;
+  }
+
+  async initShell(tab: ShellTab = 'references'): Promise<void> {
+    this.pendingShellTab = tab;
+    const existing = this.shell;
+    if (existing) {
+      this.app.workspace.revealLeaf(existing.leaf);
+      existing.switchTab(tab);
+      this.pendingShellTab = undefined;
+      if (tab === 'references') this.processReferences();
+      return;
+    }
+
+    await this.app.workspace.getRightLeaf(false).setViewState({
+      type: shellViewType,
+    });
+    this.revealShell();
+    this.pendingShellTab = undefined;
+
+    await this.initPromise.promise;
+    await this.bibManager.initPromise.promise;
+    if (tab === 'references') this.processReferences();
+    this.shell?.switchTab(tab);
+  }
+
+  revealShell(): void {
+    const leaves = this.app.workspace.getLeavesOfType(shellViewType);
+    if (leaves.length) this.app.workspace.revealLeaf(leaves[0]);
   }
 
   statusBarIcon: HTMLElement;
@@ -270,6 +407,13 @@ export default class ReferenceList extends Plugin {
         .addItem((item: any) =>
           item
             .setSection('actions')
+            .setIcon('lucide-layout-panel-left')
+            .setTitle(t('Show PandoCit panel'))
+            .onClick(() => void this.initShell('references'))
+        )
+        .addItem((item: any) =>
+          item
+            .setSection('actions')
             .setIcon('lucide-rotate-cw')
             .setTitle(t('Refresh bibliography'))
             .onClick(async () => {
@@ -291,6 +435,7 @@ export default class ReferenceList extends Plugin {
               if (this.settings.pullFromZoteroApi) {
                 const r = await this.zoteroSync.sync();
                 noticeSyncResult(r, t);
+                await this.zoteroAnnotationIndex.refresh(this);
               }
 
               this.bibManager.reinit(true);
@@ -324,63 +469,6 @@ export default class ReferenceList extends Plugin {
     setIcon(this.statusBarIcon, 'lucide-at-sign');
   }
 
-  get view() {
-    const leaves = this.app.workspace.getLeavesOfType(viewType);
-    if (!leaves?.length) return null;
-    const maybeView = leaves[0].view;
-    if (
-      maybeView &&
-      typeof (maybeView as any).setViewContent === 'function' &&
-      typeof (maybeView as any).setMessage === 'function'
-    ) {
-      return maybeView as ReferenceListView;
-    }
-    return null;
-  }
-
-  async initLeaf() {
-    if (this.view) return this.revealLeaf();
-
-    await this.app.workspace.getRightLeaf(false).setViewState({
-      type: viewType,
-    });
-
-    this.revealLeaf();
-
-    await this.initPromise.promise;
-    await this.bibManager.initPromise.promise;
-
-    const activeView = this.app.workspace.getActiveViewOfType(MarkdownView);
-    if (activeView) {
-      this.processReferences();
-    }
-  }
-
-  async initZoteroLibraryLeaf() {
-    if (!this.settings.pullFromZoteroApi) {
-      new Notice(t('Enable “Use Zotero Web API” in plugin settings first'));
-      return;
-    }
-    const leaves = this.app.workspace.getLeavesOfType(zoteroLibraryViewType);
-    if (leaves?.length) {
-      this.app.workspace.revealLeaf(leaves[0]);
-      return;
-    }
-    await this.app.workspace.getRightLeaf(false).setViewState({
-      type: zoteroLibraryViewType,
-    });
-    const newLeaves = this.app.workspace.getLeavesOfType(zoteroLibraryViewType);
-    if (newLeaves?.length) {
-      this.app.workspace.revealLeaf(newLeaves[0]);
-    }
-  }
-
-  revealLeaf() {
-    const leaves = this.app.workspace.getLeavesOfType(viewType);
-    if (!leaves?.length) return;
-    this.app.workspace.revealLeaf(leaves[0]);
-  }
-
   async loadSettings() {
     const loaded = await this.loadData();
     const safeLoaded =
@@ -394,7 +482,8 @@ export default class ReferenceList extends Plugin {
     ) as ReferenceListSettings;
     const raw = safeLoaded as { zoteroApiMergeGroupId?: number };
     if (
-      (!merged.zoteroApiMergeGroupIds || merged.zoteroApiMergeGroupIds.length === 0) &&
+      (!merged.zoteroApiMergeGroupIds ||
+        merged.zoteroApiMergeGroupIds.length === 0) &&
       raw.zoteroApiMergeGroupId != null &&
       Number.isFinite(Number(raw.zoteroApiMergeGroupId))
     ) {
@@ -411,7 +500,6 @@ export default class ReferenceList extends Plugin {
     );
     TooltipManager.syncTapModeBodyClass(!!this.settings.showCitekeyTooltips);
 
-    // Refresh the reference list when settings change
     this.emitSettingsUpdate(cb);
     await this.saveData(this.settings);
   }
@@ -419,8 +507,7 @@ export default class ReferenceList extends Plugin {
   emitSettingsUpdate = debounce(
     (cb?: () => void) => {
       if (this.initPromise.settled) {
-        this.view?.contentEl.toggleClass(
-          'collapsed-links',
+        this.shell?.refsPanel.toggleCollapsedLinks(
           !!this.settings.hideLinks
         );
 
@@ -435,9 +522,9 @@ export default class ReferenceList extends Plugin {
 
   processReferences = async () => {
     const { settings } = this;
-    const view = this.view;
+    const panel = this.shell?.refsPanel;
     if (!settings.pathToBibliography && !settings.pullFromZoteroApi) {
-      return view?.setMessage(
+      return panel?.setMessage(
         t(
           'Please provide the path to your pandoc compatible bibliography file in the PandoCit plugin settings.'
         )
@@ -454,17 +541,15 @@ export default class ReferenceList extends Plugin {
         );
         const cache = this.bibManager.fileCache.get(activeView.file);
 
-        const currentView = this.view;
-
         if (
           !bib &&
           settings.pullFromZoteroApi &&
           this.bibManager.bibCache.size === 0 &&
           cache?.keys.size
         ) {
-          currentView?.setMessage(t('Zotero library has no items — run Sync'));
+          panel?.setMessage(t('Zotero library has no items — run Sync'));
         } else {
-          currentView?.setViewContent(bib);
+          panel?.setViewContent(bib);
         }
       } catch (e) {
         console.error(e);
@@ -473,7 +558,7 @@ export default class ReferenceList extends Plugin {
           e.message &&
           e.message.toLowerCase().includes('pandoc.wasm')
         ) {
-          view?.setMessage(
+          panel?.setMessage(
             t(
               'Unable to load pandoc.wasm; reference list is disabled on this platform.'
             )
@@ -481,7 +566,7 @@ export default class ReferenceList extends Plugin {
         }
       }
     } else {
-      view?.setNoContentMessage();
+      panel?.setNoContentMessage();
     }
   };
 }

@@ -5,6 +5,8 @@ import { SettingItem } from './SettingItem';
 import { t } from 'src/lang/helpers';
 import { noticeSyncResult } from 'src/zoteroApi/zoteroSync';
 import { writeBibtexExportToVault } from 'src/zoteroApi/zoteroToBibtex';
+import { appendFilterExamples } from 'src/zoteroImport/filterExamplesUI';
+import { listVaultFolderPaths } from 'src/zoteroImport/vaultFolders';
 
 function formatMergeIds(ids: number[] | undefined): string {
   return (ids ?? []).join(', ');
@@ -80,6 +82,23 @@ export function ZoteroApiSetting({ plugin }: { plugin: ReferenceList }) {
   const [mergeGroupLabelsText, setMergeGroupLabelsText] = React.useState(
     formatMergeGroupLabels(plugin.settings.zoteroApiMergeGroupLabels)
   );
+  const [vaultFolders, setVaultFolders] = React.useState<string[]>([]);
+  const [filterFormVersion, setFilterFormVersion] = React.useState(0);
+  const filterExamplesRef = React.useRef<HTMLDivElement>(null);
+
+  React.useEffect(() => {
+    setVaultFolders(listVaultFolderPaths(plugin.app));
+  }, [plugin]);
+
+  React.useEffect(() => {
+    const host = filterExamplesRef.current;
+    if (!host || !enabled) return;
+    host.empty();
+    appendFilterExamples(host, plugin, {
+      allowInsert: true,
+      onInserted: () => setFilterFormVersion((v) => v + 1),
+    });
+  }, [enabled, filterFormVersion, plugin]);
 
   const persistApi = React.useCallback(() => {
     plugin.settings.zoteroApiKey = apiKey.trim() || undefined;
@@ -415,6 +434,168 @@ export function ZoteroApiSetting({ plugin }: { plugin: ReferenceList }) {
               >
                 {t('Export .bib now')}
               </button>
+            </SettingItem>
+          </div>
+
+          <div className="pwc-setting-item setting-item pwc-setting-item-wrapper pwc-vault-pdf-import-settings">
+            <SettingItem
+              name={t('Vault PDF import settings')}
+              desc={t('Vault folder import desc')}
+            >
+              <div className="pwc-vault-pdf-import-settings__fields">
+                <div className="pwc-vault-pdf-import-settings__field">
+                  <label className="setting-item-name">
+                    {t('Default documents folder')}
+                  </label>
+                  <p className="setting-item-description">
+                    {t('Default documents folder desc')}
+                  </p>
+                  <select
+                    className="dropdown pwc-vault-pdf-import-settings__select"
+                    value={
+                      plugin.settings.vaultPdfImport?.defaultVaultFolder ?? ''
+                    }
+                    onChange={(e) => {
+                      const v = e.target.value;
+                      plugin.settings.vaultPdfImport = {
+                        ...plugin.settings.vaultPdfImport,
+                        defaultVaultFolder: v || undefined,
+                      };
+                      void plugin.saveSettings();
+                    }}
+                  >
+                    <option value="">{t('Choose folder')}</option>
+                    {vaultFolders.map((p) => (
+                      <option key={p} value={p}>
+                        {p}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="pwc-vault-pdf-import-settings__field">
+                  <label className="setting-item-name">
+                    {t('Short PDF max pages')}
+                  </label>
+                  <input
+                    type="number"
+                    className="pwc-zotero-edit-input"
+                    min={1}
+                    defaultValue={
+                      plugin.settings.vaultPdfImport?.shortPdfMaxPages ?? 50
+                    }
+                    onChange={(e) => {
+                      const n = parseInt(e.target.value, 10);
+                      plugin.settings.vaultPdfImport = {
+                        ...plugin.settings.vaultPdfImport,
+                        shortPdfMaxPages: Number.isFinite(n) ? n : 50,
+                      };
+                      void plugin.saveSettings();
+                    }}
+                  />
+                </div>
+                <div className="pwc-vault-pdf-import-settings__field">
+                  <label className="setting-item-name">
+                    {t('Exclude folder globs')}
+                  </label>
+                  <p className="setting-item-description">
+                    {t('Exclude folder globs desc')}
+                  </p>
+                  <textarea
+                    key={`exclude-globs-${filterFormVersion}`}
+                    className="pwc-zotero-edit-input"
+                    rows={3}
+                    defaultValue={(
+                      plugin.settings.vaultPdfImport?.excludeFolderGlobs ?? []
+                    ).join('\n')}
+                    onChange={(e) => {
+                      const lines = e.target.value
+                        .split(/\r?\n/)
+                        .map((l) => l.trim())
+                        .filter(Boolean);
+                      plugin.settings.vaultPdfImport = {
+                        ...plugin.settings.vaultPdfImport,
+                        excludeFolderGlobs: lines,
+                      };
+                      void plugin.saveSettings();
+                    }}
+                  />
+                </div>
+                <div className="pwc-vault-pdf-import-settings__field">
+                  <label className="setting-item-name">
+                    {t('Exclude path regex')}
+                  </label>
+                  <p className="setting-item-description">
+                    {t('Exclude path regex desc')}
+                  </p>
+                  <input
+                    key={`exclude-path-${filterFormVersion}`}
+                    type="text"
+                    className="pwc-zotero-edit-input"
+                    defaultValue={
+                      plugin.settings.vaultPdfImport?.excludePathRegex ?? ''
+                    }
+                    onChange={(e) => {
+                      plugin.settings.vaultPdfImport = {
+                        ...plugin.settings.vaultPdfImport,
+                        excludePathRegex: e.target.value.trim() || undefined,
+                      };
+                      void plugin.saveSettings();
+                    }}
+                  />
+                </div>
+                <div className="pwc-vault-pdf-import-settings__field">
+                  <label className="setting-item-name">
+                    {t('Metadata regex pattern')}
+                  </label>
+                  <p className="setting-item-description">
+                    {t('Metadata regex desc')}
+                  </p>
+                  <input
+                    key={`metadata-regex-${filterFormVersion}`}
+                    type="text"
+                    className="pwc-zotero-edit-input"
+                    defaultValue={
+                      plugin.settings.vaultPdfImport?.metadataRegex?.pattern ?? ''
+                    }
+                    onChange={(e) => {
+                      plugin.settings.vaultPdfImport = {
+                        ...plugin.settings.vaultPdfImport,
+                        metadataRegex: {
+                          ...plugin.settings.vaultPdfImport?.metadataRegex,
+                          source: 'basename',
+                          pattern: e.target.value,
+                        },
+                      };
+                      void plugin.saveSettings();
+                    }}
+                  />
+                </div>
+                <div className="pwc-vault-pdf-import-settings__field">
+                  <label className="setting-item-name">
+                    {t('Default attachment mode')}
+                  </label>
+                  <select
+                    className="dropdown pwc-vault-pdf-import-settings__select"
+                    defaultValue={
+                      plugin.settings.vaultPdfImport?.defaultAttachmentMode ?? 'link'
+                    }
+                    onChange={(e) => {
+                      plugin.settings.vaultPdfImport = {
+                        ...plugin.settings.vaultPdfImport,
+                        defaultAttachmentMode: e.target.value as 'link' | 'upload',
+                      };
+                      void plugin.saveSettings();
+                    }}
+                  >
+                    <option value="link">{t('Link to vault file')}</option>
+                    <option value="upload">{t('Upload to Zotero')}</option>
+                  </select>
+                </div>
+                <div
+                  ref={filterExamplesRef}
+                  className="pwc-vault-pdf-import-settings__examples-host"
+                />
+              </div>
             </SettingItem>
           </div>
         </>

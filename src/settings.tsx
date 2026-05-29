@@ -27,6 +27,8 @@ import {
 } from './pandocWasmInstall';
 import { setPluginUiLocale } from './lang/helpers';
 
+export type DocumentOpenMode = 'obsidian' | 'pandocit' | 'ask';
+
 export const DEFAULT_SETTINGS: ReferenceListSettings = {
   pluginUiLocale: 'en',
   tooltipDelay: 400,
@@ -35,6 +37,8 @@ export const DEFAULT_SETTINGS: ReferenceListSettings = {
   renderCitationsReadingMode: true,
   renderLinkCitations: true,
   openPdfLinksInNewTab: true,
+  pdfOpenMode: 'obsidian',
+  epubOpenMode: 'obsidian',
   zoteroApiLibraryType: 'user',
   zoteroApiMergeGroupIds: [],
 };
@@ -64,6 +68,15 @@ export interface ReferenceListSettings {
   renderLinkCitations?: boolean;
   /** PDF du coffre ouverts via citekeys / panneau Zotero : nouvel onglet si true, sinon même zone (vue scindée possible). */
   openPdfLinksInNewTab?: boolean;
+  pdfOpenMode?: DocumentOpenMode;
+  epubOpenMode?: DocumentOpenMode;
+  hypothesisApiToken?: string;
+  hypothesisGroup?: string;
+  /** Derniers réglages de surlignage PDF (style, cible, couleur, opacité). */
+  pdfHighlightLastStyle?: 'highlight' | 'underline' | 'strikeout' | 'squiggly';
+  pdfHighlightLastTarget?: 'pdf' | 'zotero' | 'both';
+  pdfHighlightLastColor?: string;
+  pdfHighlightLastOpacity?: number;
 
   pullFromZotero?: boolean;
   zoteroPort?: string;
@@ -82,6 +95,28 @@ export interface ReferenceListSettings {
   zoteroApiGroupNamesCache?: Record<string, string>;
   /** Libellés personnalisés par ID de groupe fusionné (priorité sur le cache API) */
   zoteroApiMergeGroupLabels?: Record<string, string>;
+
+  vaultPdfImport?: VaultPdfImportSettings;
+}
+
+export interface VaultPdfImportMetadataRegex {
+  source?: 'basename' | 'relativePath';
+  pattern?: string;
+  titleGroup?: string;
+  authorGroup?: string;
+  citekeyGroup?: string;
+}
+
+export interface VaultPdfImportSettings {
+  /** Dossier du coffre scanné par défaut à l’ouverture de l’import PDF → Zotero. */
+  defaultVaultFolder?: string;
+  excludeFolderGlobs?: string[];
+  excludePathRegex?: string;
+  includeExtensions?: string[];
+  shortPdfMaxPages?: number;
+  metadataRegex?: VaultPdfImportMetadataRegex;
+  defaultItemType?: 'book' | 'document';
+  defaultAttachmentMode?: 'link' | 'upload';
 }
 
 export class ReferenceListSettingsTab extends PluginSettingTab {
@@ -440,6 +475,51 @@ export class ReferenceListSettingsTab extends PluginSettingTab {
           .setValue(this.plugin.settings.openPdfLinksInNewTab !== false)
           .onChange((value) => {
             this.plugin.settings.openPdfLinksInNewTab = value;
+            this.plugin.saveSettings();
+          })
+      );
+
+    const addDocMode = (kind: 'pdf' | 'epub', label: string) => {
+      new Setting(containerEl)
+        .setName(label)
+        .addDropdown((dd) => {
+          dd.addOption('obsidian', 'Obsidian')
+            .addOption('pandocit', 'PandoCit')
+            .addOption('ask', t('Ask each time'));
+          const cur =
+            kind === 'pdf'
+              ? this.plugin.settings.pdfOpenMode ?? 'obsidian'
+              : this.plugin.settings.epubOpenMode ?? 'obsidian';
+          dd.setValue(cur).onChange((v) => {
+            const mode = v as DocumentOpenMode;
+            if (kind === 'pdf') this.plugin.settings.pdfOpenMode = mode;
+            else this.plugin.settings.epubOpenMode = mode;
+            this.plugin.saveSettings();
+          });
+        });
+    };
+    addDocMode('pdf', t('PDF open mode'));
+    addDocMode('epub', t('EPUB open mode'));
+
+    new Setting(containerEl)
+      .setName(t('Hypothesis API token'))
+      .setDesc(t('Optional token for Hypothesis import/export'))
+      .addText((text) =>
+        text
+          .setValue(this.plugin.settings.hypothesisApiToken ?? '')
+          .onChange((v) => {
+            this.plugin.settings.hypothesisApiToken = v;
+            this.plugin.saveSettings();
+          })
+      );
+
+    new Setting(containerEl)
+      .setName(t('Hypothesis group'))
+      .addText((text) =>
+        text
+          .setValue(this.plugin.settings.hypothesisGroup ?? 'public')
+          .onChange((v) => {
+            this.plugin.settings.hypothesisGroup = v;
             this.plugin.saveSettings();
           })
       );
