@@ -192,5 +192,8 @@ esbuild
 
   })
 
-  .catch(() => process.exit(1));
+  .catch((err) => {
+    console.error('[PandoCit build]', err);
+    process.exit(1);
+  });
 
