@@ -1,11 +1,15 @@
 import esbuild from 'esbuild';
 import { gzipSync } from 'fflate';
+import { builtinModules } from 'node:module';
 
 import process from 'process';
 
 import { copyFileSync, cpSync, mkdirSync, readFileSync } from 'fs';
 
-import builtins from 'builtin-modules';
+const builtins = [
+  ...builtinModules,
+  ...builtinModules.map((m) => `node:${m}`),
+];
 
 const pdfWorkerBytes = readFileSync(
   'node_modules/pdfjs-dist/legacy/build/pdf.worker.min.mjs'
