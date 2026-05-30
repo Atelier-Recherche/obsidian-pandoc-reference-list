@@ -99,6 +99,62 @@ Vue **arborescente** (collections, éléments sans classe, pièces isolées, cor
 
 Commande **« Sync Zotero library (Web API) »** pour actualiser après la première synchro.
 
+### 📥 Import d’un dossier PDF vers Zotero
+
+Commande **« Importer un dossier PDF vers Zotero »** (panneau bibliothèque ou palette) : scan récursif d’un dossier du coffre, détection des doublons, clés de citation suggérées (auteur + année + initiales du titre), collections « longs » / « courts » PDF, pièce jointe liée au coffre ou téléversée. Réglages : dossier par défaut, motifs d’exclusion, regex sur les noms de fichiers.
+
+## 📄 Lecteur PDF intégré
+
+- Ouverture via le coffre (Obsidian natif ou lecteur PandoCit, selon réglages).
+- **Surlignage** dans le PDF et/ou **Zotero** (API Web), avec styles mémorisés et menu contextuel.
+- **Panneau annotations** : liste unifiée (PDF, Zotero), copie de référence Pandoc (`> texte`, lien Obsidian, `[@citekey]`).
+- Synchronisation des surlignages avec les pièces jointes Zotero liées au fichier du coffre.
+
+## 📗 Lecteur EPUB intégré
+
+- Lecteur **foliate-js** dans Obsidian (navigation, surlignage local).
+- Fichier **sidecar** d’annotations à côté de l’EPUB.
+- Début de liaison **Zotero** (lecture / envoi d’annotations si pièce jointe EPUB reconnue) — voir roadmap ci-dessous.
+
+## 📝 Hypothesis (optionnel)
+
+Token API et groupe dans les réglages. **Import** des annotations Hypothesis vers le panneau document (EPUB) ; **export** des annotations locales vers Hypothesis. Interface masquée si non configuré.
+
+## 🗺️ Roadmap (synthèse)
+
+État actuel : **citations Pandoc + Zotero API + PDF** sont les plus matures ; **EPUB** et **Hypothesis** ont une base fonctionnelle à affiner.
+
+| Priorité | EPUB | Hypothesis | Autres pistes |
+| :---: | --- | --- | --- |
+| **Court terme** | Panneau annotations aligné sur le PDF ; notes Zotero (HTML) depuis la bibliothèque ; stabilité surlignage ↔ Zotero (CFI) | Jeux de tests (URI coffre, groupe public/privé, aller-retour import/export) ; messages d’erreur plus explicites | Import dossier PDF : affiner filtres et retours utilisateur |
+| **Moyen terme** | Recherche dans le livre ; préférences typographie ; conversion cible PDF ↔ Zotero comme pour le PDF | Sélecteurs riches (pas seulement citation textuelle) ; lien avec pages PDF si même ouvrage | Copier référence depuis annotations EPUB comme pour le PDF |
+| **Long terme** | Parité fonctionnelle PDF/EPUB (overlay, mobile) | Workflow de revue de littérature (sync planifiée, conflits) | Plugin catalogue Obsidian ; tests CI étendus ; assets PDF locaux sans CDN |
+
+**EPUB — détail**
+
+- [x] Lecteur foliate, sidecar, toolbar de base
+- [x] Lecture annotations Zotero existantes ; envoi highlight vers Zotero (API)
+- [ ] Édition / affichage des **notes Zotero** liées à l’EPUB
+- [ ] Surlignage fluide avec synchro bidirectionnelle fiable
+- [ ] Intégration complète au panneau « Annotations du document »
+- [ ] Tests sur gros fichiers et mobile
+
+**Hypothesis — détail**
+
+- [x] Token + groupe ; import API search ; export POST
+- [ ] Tests systématiques (PDF annoté dans le navigateur, EPUB, URIs multiples)
+- [ ] Robustesse réseau et quotas API
+- [ ] Harmonisation avec le flux Zotero (éviter doublons, choix de source)
+
+**Autres idées**
+
+- Recherche globale dans les annotations (tous documents ouverts récemment).
+- Export groupé des références d’une session de lecture.
+- Rappel de synchronisation Zotero avant export `.bib`.
+- Support **Typst** / modèles de notes de lecture depuis les annotations.
+
+> Les cases cochées reflètent l’état du dépôt à la date de la doc ; la roadmap peut évoluer sur [GitHub Issues](https://github.com/Atelier-Recherche/pandocit/issues).
+
 ## 💻 Développement et build
 
 Prérequis : [Node.js](https://nodejs.org/) et [Yarn](https://yarnpkg.com/).
@@ -108,12 +164,26 @@ yarn install
 yarn build
 ```
 
-Le script produit `main.js` à la racine. Pour tester dans un coffre Obsidian, copiez dans `.obsidian/plugins/<nom-du-plugin>/` :
+En CI / release, `yarn install` utilise `--ignore-scripts` (évite le script `prepare` de `@codemirror/language` depuis GitHub).
 
-- `main.js`
-- `manifest.json`
-- `styles.css` (si présent)
-- `pandoc.wasm` (obligatoire pour les bibliographies non-JSON)
+Le build produit notamment :
+
+- `main.js` (bundle ; non versionné — fourni par les [releases GitHub](https://github.com/Atelier-Recherche/pandocit/releases))
+- `manifest.json`, `styles.css`
+- `pdf.worker.min.mjs`, dossier `pdfjs/` (lecteur PDF)
+- `pdf-assets/`, `foliate/` (assets copiés depuis les dépendances)
+
+**Déploiement local** (Windows) :
+
+```powershell
+.\Deploy-LocalPlugin.ps1
+```
+
+Copie `main.js`, `manifest.json`, `styles.css`, `pdf.worker.min.mjs` et `pdfjs/` vers le dossier plugin Obsidian (préserve `data.json` et `pandoc.wasm`).
+
+**Release** : `.\Release-Plugin.ps1` incrémente la version, build, commit, tag et push ; la [workflow release](.github/workflows/release.yml) attache les artefacts (dont `pdf.worker.min.mjs` et un zip complet).
+
+Dans le coffre, installez aussi **`pandoc.wasm`** via les réglages du plugin (obligatoire pour les bibliographies non-JSON).
 
 ## ⚠️ Limitations connues (WASM)
 

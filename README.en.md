@@ -99,6 +99,62 @@ Command: **“Open Zotero library panel”**.
 
 Use **“Sync Zotero library (Web API)”** to refresh after the first sync.
 
+### 📥 Import vault PDF folder to Zotero
+
+Command **“Import vault PDF folder to Zotero”**: recursive scan, duplicate detection, suggested citation keys (author + year + title initials), long/short PDF collections, linked or uploaded attachments. Settings: default folder, exclusion patterns, filename regex.
+
+## 📄 Built-in PDF reader
+
+- Open from vault (Obsidian native or PandoCit reader, per settings).
+- **Highlights** to PDF and/or **Zotero** (Web API), saved styles, context menu.
+- **Annotations panel**: unified list, Pandoc reference copy (`> quote`, Obsidian link, `[@citekey]`).
+- Sync with Zotero attachments linked to vault files.
+
+## 📗 Built-in EPUB reader
+
+- **foliate-js** reader in Obsidian (navigation, local highlights).
+- Annotation **sidecar** next to the EPUB.
+- Early **Zotero** linking (read/push highlights when EPUB attachment is matched) — see roadmap below.
+
+## 📝 Hypothesis (optional)
+
+API token and group in settings. **Import** Hypothesis annotations into the document panel (EPUB); **export** local annotations to Hypothesis. UI hidden when not configured.
+
+## 🗺️ Roadmap (summary)
+
+Today: **Pandoc citations + Zotero API + PDF** are the most mature; **EPUB** and **Hypothesis** have a working base that still needs polish.
+
+| Priority | EPUB | Hypothesis | Other |
+| :---: | --- | --- | --- |
+| **Short term** | Annotations panel parity with PDF; Zotero HTML notes from library; reliable highlight ↔ Zotero (CFI) | Test matrix (vault URIs, groups, round-trip import/export); clearer errors | Vault PDF import UX |
+| **Medium term** | In-book search; typography prefs; PDF-like Zotero targets | Rich selectors; same work on web/PDF | Copy reference from EPUB annotations |
+| **Long term** | PDF/EPUB feature parity (overlay, mobile) | Scheduled sync, conflict handling | Obsidian community listing; broader CI tests; offline PDF assets |
+
+**EPUB**
+
+- [x] Foliate reader, sidecar, basic toolbar
+- [x] Read Zotero annotations; push highlights via API
+- [ ] Zotero **notes** on EPUB items
+- [ ] Smooth bidirectional highlight sync
+- [ ] Full document annotations panel integration
+- [ ] Large files & mobile testing
+
+**Hypothesis**
+
+- [x] Token + group; import search API; export POST
+- [ ] Systematic tests (browser PDF, EPUB, multiple URIs)
+- [ ] Network resilience and API limits
+- [ ] Alignment with Zotero flow (dedup, source choice)
+
+**Other ideas**
+
+- Global search across recent document annotations.
+- Batch export of reading-session references.
+- Zotero sync reminder before `.bib` export.
+- Reading-note templates from annotations (Typst, etc.).
+
+> Checkboxes reflect the repo at doc update time; track changes on [GitHub Issues](https://github.com/Atelier-Recherche/pandocit/issues).
+
 ## 💻 Development and build
 
 Requires [Node.js](https://nodejs.org/) and [Yarn](https://yarnpkg.com/).
@@ -108,12 +164,20 @@ yarn install
 yarn build
 ```
 
-Produces `main.js` at the project root. To test in a vault, copy into `.obsidian/plugins/<plugin-name>/`:
+CI/release uses `yarn install --frozen-lockfile --ignore-scripts` (skips `@codemirror/language` git `prepare` script).
 
-- `main.js`
-- `manifest.json`
-- `styles.css` (if present)
-- `pandoc.wasm` (required for non-JSON bibliographies)
+Build outputs include:
+
+- `main.js` (bundle; not in git — see [GitHub releases](https://github.com/Atelier-Recherche/pandocit/releases))
+- `manifest.json`, `styles.css`
+- `pdf.worker.min.mjs`, `pdfjs/` (PDF reader)
+- `pdf-assets/`, `foliate/` (copied from dependencies)
+
+**Local deploy** (Windows): `.\Deploy-LocalPlugin.ps1` — copies `main.js`, `manifest.json`, `styles.css`, `pdf.worker.min.mjs`, and `pdfjs/` to your vault plugin folder (keeps `data.json` and `pandoc.wasm`).
+
+**Release**: `.\Release-Plugin.ps1` bumps version, builds, commits, tags, pushes; [.github/workflows/release.yml](.github/workflows/release.yml) publishes assets including `pdf.worker.min.mjs` and a full zip.
+
+Install **`pandoc.wasm`** from plugin settings in the vault (required for non-JSON bibliographies).
 
 ## ⚠️ Known limitations (WASM)
 
