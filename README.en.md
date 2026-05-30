@@ -44,6 +44,8 @@ Shows a formatted reference list in the sidebar for each Pandoc citation key (`[
 
 ## ⬇️ Install via BRAT (one click)
 
+> **Plugin ID (Obsidian community)** : `pandocit` — the folder under `.obsidian/plugins/` must be named **`pandocit`** (IDs cannot contain `obsidian`; see [Manifest guidelines](https://docs.obsidian.md/Reference/Manifest)). Migrating from `obsidian-pandoc-reference-list`? Rename the folder or reinstall, then copy `data.json` and `pandoc.wasm`.
+
 1. 🔌 Install **BRAT**: [Obsidian — BRAT](https://obsidian.md/plugins?search=BRAT#)
 2. ➕ Add this repo with *“Add Beta plugin”*:  
    `https://github.com/Atelier-Recherche/pandocit`

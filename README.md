@@ -44,6 +44,8 @@ Affiche dans le panneau latéral une liste de références formatée pour chaque
 
 ## ⬇️ Installation via BRAT (1 clic)
 
+> **ID du plugin (catalogue Obsidian)** : `pandocit` — le dossier dans `.obsidian/plugins/` doit s’appeler **`pandocit`** (sans le mot `obsidian` dans l’ID, conformément aux [règles du manifest](https://docs.obsidian.md/Reference/Manifest)). Si vous migrez depuis `obsidian-pandoc-reference-list`, renommez le dossier ou réinstallez, puis copiez `data.json` et `pandoc.wasm`.
+
 1. 🔌 Installer **BRAT** : [Obsidian — BRAT](https://obsidian.md/plugins?search=BRAT#)
 2. ➕ Ajouter ce dépôt avec l’option *« Add Beta plugin »* :  
    `https://github.com/Atelier-Recherche/pandocit`

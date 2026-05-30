@@ -10,7 +10,7 @@
 
 .PARAMETER TargetPluginDir
   Dossier plugin Obsidian de destination.
-  Défaut: D:\Notes\.obsidian\plugins\obsidian-pandoc-reference-list
+  Défaut: D:\Notes\.obsidian\plugins\pandocit
 
 .PARAMETER SkipBuild
   Copie les fichiers sans relancer `yarn build`.
@@ -23,7 +23,7 @@
 #>
 
 param(
-  [string]$TargetPluginDir = 'D:\Notes\.obsidian\plugins\obsidian-pandoc-reference-list',
+  [string]$TargetPluginDir = 'D:\Notes\.obsidian\plugins\pandocit',
   [switch]$SkipBuild
 )
 
