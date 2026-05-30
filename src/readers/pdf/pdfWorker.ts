@@ -1,22 +1,43 @@
 import { FileSystemAdapter, Platform, Plugin } from 'obsidian';
+import { gunzipSync } from 'fflate';
 import { GlobalWorkerOptions } from 'pdfjs-dist/legacy/build/pdf.mjs';
 
 import { getPath } from '../../platformAdapter';
 
-/** Injected at build time by esbuild (see esbuild.config.mjs). */
+/** Build prod : worker gzip+base64 injecté (esbuild). Dev : texte brut. */
+declare const __PDF_WORKER_GZ_B64__: string | undefined;
 declare const __PDF_WORKER_CODE__: string | undefined;
 
 let configured = false;
 let blobUrl: string | null = null;
 
-function configureFromInlineBlob(): boolean {
-  if (typeof __PDF_WORKER_CODE__ !== 'string' || !__PDF_WORKER_CODE__.length) {
-    return false;
+function base64ToBytes(b64: string): Uint8Array {
+  const bin = atob(b64);
+  const out = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+  return out;
+}
+
+function decodeEmbeddedWorker(): string | null {
+  if (typeof __PDF_WORKER_GZ_B64__ === 'string' && __PDF_WORKER_GZ_B64__.length) {
+    try {
+      const gz = base64ToBytes(__PDF_WORKER_GZ_B64__);
+      return new TextDecoder().decode(gunzipSync(gz));
+    } catch (e) {
+      console.error('[PandoCit PDF] gzip worker decode failed', e);
+    }
   }
+  if (typeof __PDF_WORKER_CODE__ === 'string' && __PDF_WORKER_CODE__.length) {
+    return __PDF_WORKER_CODE__;
+  }
+  return null;
+}
+
+function configureFromInlineBlob(): boolean {
+  const code = decodeEmbeddedWorker();
+  if (!code) return false;
   try {
-    const blob = new Blob([__PDF_WORKER_CODE__], {
-      type: 'application/javascript',
-    });
+    const blob = new Blob([code], { type: 'application/javascript' });
     blobUrl = URL.createObjectURL(blob);
     GlobalWorkerOptions.workerSrc = blobUrl;
     return true;

@@ -1,4 +1,5 @@
 import esbuild from 'esbuild';
+import { gzipSync } from 'fflate';
 
 import process from 'process';
 
@@ -6,15 +7,13 @@ import { copyFileSync, cpSync, mkdirSync, readFileSync } from 'fs';
 
 import builtins from 'builtin-modules';
 
-
-
-const pdfWorkerCode = readFileSync(
-
-  'node_modules/pdfjs-dist/legacy/build/pdf.worker.min.mjs',
-
-  'utf8'
-
+const pdfWorkerBytes = readFileSync(
+  'node_modules/pdfjs-dist/legacy/build/pdf.worker.min.mjs'
 );
+/** ~75 % plus petit qu’un embed texte brut → main.js sous la limite Sync 5 Mo. */
+const pdfWorkerGzB64 = Buffer.from(
+  gzipSync(pdfWorkerBytes, { level: 9 })
+).toString('base64');
 
 
 
@@ -166,11 +165,17 @@ esbuild
 
     minify: prod,
 
-    define: {
-
-      __PDF_WORKER_CODE__: JSON.stringify(pdfWorkerCode),
-
-    },
+    define: prod
+      ? {
+          __PDF_WORKER_GZ_B64__: JSON.stringify(pdfWorkerGzB64),
+          __PDF_WORKER_CODE__: '""',
+        }
+      : {
+          __PDF_WORKER_GZ_B64__: '""',
+          __PDF_WORKER_CODE__: JSON.stringify(
+            pdfWorkerBytes.toString('utf8')
+          ),
+        },
 
   })
 
