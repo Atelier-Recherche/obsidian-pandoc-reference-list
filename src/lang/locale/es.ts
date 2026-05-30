@@ -15,6 +15,16 @@ export default {
     'Pandoc WASM instalado. Recargue Obsidian para usarlo.',
   'Pandoc WASM download failed.': 'Error al descargar Pandoc WASM.',
   Installed: 'Instalado',
+  'Download PDF.js worker': 'Descargar worker PDF.js',
+  'Installs pdf.worker.min.mjs next to main.js (optional fallback). The worker is already embedded in main.js for catalog installs. Reload Obsidian after install.':
+    'Instala pdf.worker.min.mjs junto a main.js (opcional). El worker ya está en main.js (catálogo). Recargue Obsidian después.',
+  'Download PDF worker': 'Descargar worker PDF',
+  'Downloading PDF.js worker…': 'Descargando worker PDF.js…',
+  'pdf.worker is already in the plugin folder.':
+    'pdf.worker.min.mjs ya está en la carpeta del plugin.',
+  'PDF.js worker installed. Reload Obsidian to apply.':
+    'Worker PDF.js instalado. Recargue Obsidian.',
+  'PDF.js worker download failed.': 'Error al descargar el worker PDF.js.',
 
   'Path to bibliography file': 'Ruta del archivo de bibliografía',
   'The absolute path to your desired bibliography file. This can be overridden on a per-file basis by setting "bibliography" in the file\'s frontmatter.':

@@ -177,7 +177,7 @@ Build outputs include:
 
 **Local deploy** (Windows): `.\Deploy-LocalPlugin.ps1` — copies `main.js`, `manifest.json`, `styles.css`, `pdf.worker.min.mjs`, and `pdfjs/` to your vault plugin folder (keeps `data.json` and `pandoc.wasm`).
 
-**Release**: `.\Release-Plugin.ps1` bumps version, builds, commits, tags, pushes; [.github/workflows/release.yml](.github/workflows/release.yml) publishes assets including `pdf.worker.min.mjs` and a full zip.
+**Release**: `.\Release-Plugin.ps1` bumps version, builds, commits, tags, pushes; [.github/workflows/release.yml](.github/workflows/release.yml) publishes **only** `main.js`, `manifest.json`, and `styles.css` (Obsidian community requirement). The PDF worker is **embedded in `main.js`**; optional `pdf.worker.min.mjs` download is in **plugin settings** (like `pandoc.wasm`). For `pdfjs/` and full deploy, use BRAT or `.\Deploy-LocalPlugin.ps1`.
 
 Install **`pandoc.wasm`** from plugin settings in the vault (required for non-JSON bibliographies).
 

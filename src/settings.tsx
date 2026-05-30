@@ -25,6 +25,10 @@ import {
   downloadAndInstallPandocWasm,
   isPandocWasmInstalled,
 } from './pandocWasmInstall';
+import {
+  downloadAndInstallPdfWorker,
+  isPdfWorkerInstalled,
+} from './pdfWorkerInstall';
 import { setPluginUiLocale } from './lang/helpers';
 
 export type DocumentOpenMode = 'obsidian' | 'pandocit' | 'ask';
@@ -149,6 +153,28 @@ export class ReferenceListSettingsTab extends PluginSettingTab {
       );
   }
 
+  private async mountPdfWorkerDownloadSetting(host: HTMLElement): Promise<void> {
+    host.empty();
+    const workerInstalled = await isPdfWorkerInstalled(this.plugin);
+    new Setting(host)
+      .setName(t('Download PDF.js worker'))
+      .setDesc(
+        `${t(
+          'Installs pdf.worker.min.mjs next to main.js (optional fallback). The worker is already embedded in main.js for catalog installs. Reload Obsidian after install.'
+        )}${workerInstalled ? ` (${t('Installed')})` : ''}`
+      )
+      .addButton((btn) =>
+        btn
+          .setButtonText(t('Download PDF worker'))
+          .setCta()
+          .setTooltip(t('Download PDF worker'))
+          .onClick(async () => {
+            await downloadAndInstallPdfWorker(this.plugin);
+            await this.mountPdfWorkerDownloadSetting(host);
+          })
+      );
+  }
+
   display(): void {
     const { containerEl } = this;
 
@@ -175,6 +201,9 @@ export class ReferenceListSettingsTab extends PluginSettingTab {
 
     const wasmHost = containerEl.createDiv();
     void this.mountWasmDownloadSetting(wasmHost);
+
+    const pdfWorkerHost = containerEl.createDiv();
+    void this.mountPdfWorkerDownloadSetting(pdfWorkerHost);
 
     new Setting(containerEl)
       .setName(t('Path to bibliography file'))

@@ -183,7 +183,7 @@ Le build produit notamment :
 
 Copie `main.js`, `manifest.json`, `styles.css`, `pdf.worker.min.mjs` et `pdfjs/` vers le dossier plugin Obsidian (préserve `data.json` et `pandoc.wasm`).
 
-**Release** : `.\Release-Plugin.ps1` incrémente la version, build, commit, tag et push ; la [workflow release](.github/workflows/release.yml) attache les artefacts (dont `pdf.worker.min.mjs` et un zip complet).
+**Release** : `.\Release-Plugin.ps1` incrémente la version, build, commit, tag et push ; la [workflow release](.github/workflows/release.yml) publie **uniquement** `main.js`, `manifest.json` et `styles.css` (exigence du [catalogue Obsidian](https://docs.obsidian.md/Reference/Releasing+your+plugin)). Le worker PDF est **inclus dans `main.js`** ; un téléchargement optionnel de `pdf.worker.min.mjs` est proposé dans les **réglages du plugin** (comme pour `pandoc.wasm`). Pour `pdfjs/` et déploiement complet : BRAT ou `.\Deploy-LocalPlugin.ps1`.
 
 Dans le coffre, installez aussi **`pandoc.wasm`** via les réglages du plugin (obligatoire pour les bibliographies non-JSON).
 

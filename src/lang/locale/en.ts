@@ -15,6 +15,16 @@ export default {
     'Pandoc WASM installed. Reload Obsidian to apply.',
   'Pandoc WASM download failed.': 'Pandoc WASM download failed.',
   Installed: 'Installed',
+  'Download PDF.js worker': 'Download PDF.js worker',
+  'Installs pdf.worker.min.mjs next to main.js (optional fallback). The worker is already embedded in main.js for catalog installs. Reload Obsidian after install.':
+    'Installs pdf.worker.min.mjs next to main.js (optional fallback). The worker is already embedded in main.js for catalog installs. Reload Obsidian after install.',
+  'Download PDF worker': 'Download PDF worker',
+  'Downloading PDF.js worker…': 'Downloading PDF.js worker…',
+  'pdf.worker is already in the plugin folder.':
+    'pdf.worker.min.mjs is already in the plugin folder.',
+  'PDF.js worker installed. Reload Obsidian to apply.':
+    'PDF.js worker installed. Reload Obsidian to apply.',
+  'PDF.js worker download failed.': 'PDF.js worker download failed.',
 
   // src/settings.ts
   'Path to bibliography file': 'Path to bibliography file',

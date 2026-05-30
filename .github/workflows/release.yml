@@ -12,7 +12,6 @@ jobs:
   build:
     runs-on: ubuntu-latest
 
-    # Évite le cache global ~/.cache/yarn/v6 (corruptions argparse, y18n, etc.)
     env:
       YARN_CACHE_FOLDER: ${{ github.workspace }}/.ci-yarn-cache
 
@@ -28,7 +27,6 @@ jobs:
         run: |
           set -euo pipefail
           rm -rf .ci-yarn-cache node_modules
-          # @codemirror/language (git) : prepare relance yarn sans lockfile — dist/ déjà dans le paquet.
           install_ok=0
           for attempt in 1 2 3; do
             echo "=== yarn install (tentative ${attempt}/3) ==="
@@ -52,19 +50,6 @@ jobs:
           test -f main.js
           test -f manifest.json
           test -f styles.css
-          test -f pdf.worker.min.mjs
-          test -d pdfjs
-
-      - name: Package plugin zip
-        run: |
-          set -euo pipefail
-          tag="${GITHUB_REF#refs/tags/}"
-          zip -r "pandocit-${tag}.zip" \
-            main.js \
-            manifest.json \
-            styles.css \
-            pdf.worker.min.mjs \
-            pdfjs
 
       - name: Create release
         env:
@@ -73,11 +58,11 @@ jobs:
           set -euo pipefail
           tag="${GITHUB_REF#refs/tags/}"
 
+          # Catalogue Obsidian : uniquement ces 3 fichiers (pas de zip ni pdf.worker.min.mjs).
+          # Le worker PDF est inclus dans main.js (__PDF_WORKER_CODE__).
           gh release create "$tag" \
             --title="$tag" \
             --notes-file="release-notes.md" \
             main.js \
             manifest.json \
-            styles.css \
-            pdf.worker.min.mjs \
-            "pandocit-${tag}.zip"
+            styles.css
