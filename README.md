@@ -166,7 +166,7 @@ yarn install
 yarn build
 ```
 
-En CI / release, `yarn install` utilise `--ignore-scripts` (évite le script `prepare` de `@codemirror/language` depuis GitHub).
+En CI / release, `yarn install` utilise `--ignore-scripts` et un cache Yarn local au runner (évite les corruptions du cache global `~/.cache/yarn`).
 
 Le build produit notamment :
 

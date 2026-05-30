@@ -23,5 +23,6 @@ dist
 .hotreload
 coverage
 yarn-error.log
+.ci-yarn-cache
 
 Release-Plugin.ps1
