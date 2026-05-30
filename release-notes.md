@@ -1,0 +1,2 @@
+f1fa5fb Update plugin ID and documentation for PandoCit. Change references from 'obsidian-pandoc-reference-list' to 'pandocit' in the manifest, deployment script, and README files. Ensure compatibility with Obsidian's plugin guidelines.
+32fb49f Enhance README documentation with new features for importing PDFs to Zotero, built-in PDF and EPUB readers, and Hypothesis integration. Update roadmap with short, medium, and long-term goals for EPUB and Hypothesis functionalities. Remove outdated release notes file.
