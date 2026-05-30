@@ -1,1 +1,1 @@
-a13f9be Update CI workflow to utilize a local Yarn cache, enhancing dependency installation reliability. Modify README to reflect changes in Yarn install process and add .ci-yarn-cache to .gitignore.
+3260453 Update README and workflow to reflect changes in PDF.js worker handling. The release process now publishes only essential files, with the PDF worker embedded in main.js. Added settings for optional PDF worker download in the plugin interface, along with corresponding translations in multiple languages.
