@@ -3,8 +3,8 @@
 	"name": "PandoCit",
 	"version": "2.0.42",
 	"minAppVersion": "0.15.0",
-	"description": "Citations Pandoc, bibliothèque Zotero (API), lecteurs PDF/EPUB et annotations dans Obsidian.",
+	"description": "Citations Pandoc, bibliothèque Zotero (API), lecteurs PDF/EPUB et annotations.",
 	"author": "l'Atelier",
-	"authorUrl": "https://github.com/Atelier-Recherche/pandocit",
+	"authorUrl": "https://atelier.atechnologie.fr/activites/programmation-doutils/",
 	"isDesktopOnly": false
 }
