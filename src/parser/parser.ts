@@ -368,6 +368,8 @@ export function getCitationSegments(str: string, ignoreLinks: boolean = false) {
 
   let state: State = null;
   let seekState: State = null;
+  /** Depth of nested `[` inside an Obsidian inline footnote (`^[...]`). */
+  let inlineFootnoteDepth = 0;
 
   const endSegment = () => {
     if (state.encounteredKey) {
@@ -414,6 +416,13 @@ export function getCitationSegments(str: string, ignoreLinks: boolean = false) {
     const next = str[i + 1];
 
     if (c === '[') {
+      if (prev === '^') {
+        inlineFootnoteDepth = 1;
+        continue;
+      }
+      if (inlineFootnoteDepth > 0) {
+        inlineFootnoteDepth++;
+      }
       if (next === '[' && !state) continue;
       if (state) state.bracketDepth++;
       if (!state || state.bracketDepth === 1) {
@@ -585,6 +594,10 @@ export function getCitationSegments(str: string, ignoreLinks: boolean = false) {
         state = null;
         continue;
       }
+    }
+
+    if (c === ']' && inlineFootnoteDepth > 0) {
+      inlineFootnoteDepth--;
     }
 
     if (state?.inBrackets) {

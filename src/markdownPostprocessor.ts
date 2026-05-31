@@ -27,15 +27,25 @@ export function processCiteKeys(plugin: ReferenceList) {
 
     // We wont get a sectionInfo in print mode
     const cache = plugin.bibManager.getCacheForPath(ctx.sourcePath);
-    const sectionCites = sectionInfo
-      ? plugin.bibManager.getCitationsForSection(
-          ctx.sourcePath,
-          sectionInfo.lineStart,
-          sectionInfo.lineEnd
-        )
-      : cache?.citations;
+    const allCitations = cache?.citations;
+    if (!allCitations?.length) return;
 
-    if (!sectionCites?.length) return;
+    const isFootnotesBlock =
+      el.hasClass('footnotes') ||
+      el.matches?.('[data-footnotes]') ||
+      !!el.closest?.('.footnotes, [data-footnotes]');
+
+    if (
+      !sectionInfo &&
+      !el.hasClass('markdown-preview-view') &&
+      !isFootnotesBlock
+    ) {
+      return;
+    }
+
+    const shouldRenderFormatted =
+      plugin.settings.renderCitationsReadingMode ||
+      (isFootnotesBlock && plugin.settings.renderCitations);
 
     let node;
     while ((node = walker.nextNode())) {
@@ -60,7 +70,7 @@ export function processCiteKeys(plugin: ReferenceList) {
       for (const match of segments) {
         if (!didMatch) didMatch = true;
 
-        const rendered = sectionCites.find((c) =>
+        const rendered = allCitations.find((c) =>
           equal(onlyValType(c.data), onlyValType(match))
         );
 
@@ -88,7 +98,7 @@ export function processCiteKeys(plugin: ReferenceList) {
             cls: getCiteClass(true, false),
           });
 
-          if (plugin.settings.renderCitationsReadingMode) {
+          if (shouldRenderFormatted) {
             if (/</.test(rendered.val)) {
               const parsed = new DOMParser().parseFromString(
                 rendered.val,

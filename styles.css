@@ -282,6 +282,19 @@ body {
   pointer-events: none;
 }
 
+/* Citation widget between .cm-inline-footnote spans — use Obsidian footnote scale */
+.pwc-tooltips .pandoc-citation.is-in-inline-footnote.cm-inline-footnote {
+  display: inline;
+  vertical-align: baseline;
+  position: static;
+  top: auto;
+}
+
+.pwc-tooltips .pandoc-citation.is-in-inline-footnote.cm-inline-footnote > * {
+  font-size: inherit;
+  line-height: inherit;
+}
+
 /* Mobile / tactile : icône info + tap sur la citation */
 body.pwc-cite-tap-mode .pandoc-citation[data-citekey],
 body.pwc-cite-tap-mode .cm-pandoc-citation[data-citekey] {

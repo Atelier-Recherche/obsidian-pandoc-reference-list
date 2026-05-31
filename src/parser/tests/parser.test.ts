@@ -43,6 +43,14 @@ const segmentFixtures: Record<string, Segment[][]> = {
       { from: 14, to: 15, val: ']', type: SegmentType.bracket },
     ],
   ],
+  'note ^[teste notes [@Feenberg2016] mieux mais non]': [
+    [
+      { from: 19, to: 20, val: '[', type: SegmentType.bracket },
+      { from: 20, to: 21, val: '@', type: SegmentType.at },
+      { from: 21, to: 33, val: 'Feenberg2016', type: SegmentType.key },
+      { from: 33, to: 34, val: ']', type: SegmentType.bracket },
+    ],
+  ],
   '@item1 says blah.': [
     [
       { from: 0, to: 1, val: '@', type: SegmentType.at },

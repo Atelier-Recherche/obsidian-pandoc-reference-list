@@ -27,6 +27,7 @@ import {
 import { BibManager, FileCache } from './bib/bibManager';
 import equal from 'fast-deep-equal';
 import { TooltipManager } from './tooltip';
+import { citationInsideInlineFootnote } from './footnoteUtils';
 
 const ignoreListRegEx = /code|math|templater|hashtag/;
 
@@ -90,20 +91,64 @@ export function editorTooltipHandler(manager: TooltipManager) {
   return EditorView.domEventHandlers(manager.getEditorTooltipHandler());
 }
 
+function findInlineFootnoteTextSibling(el: HTMLElement): HTMLElement | null {
+  const isFootnoteText = (node: Element | null): node is HTMLElement =>
+    node instanceof HTMLElement &&
+    node.classList.contains('cm-inline-footnote') &&
+    !node.classList.contains('cm-inline-footnote-start') &&
+    !node.classList.contains('cm-inline-footnote-end');
+
+  let node = el.previousElementSibling;
+  while (node) {
+    if (isFootnoteText(node)) return node;
+    if (!node.classList.contains('cm-widgetBuffer')) return null;
+    node = node.previousElementSibling;
+  }
+
+  node = el.nextElementSibling;
+  while (node) {
+    if (isFootnoteText(node)) return node;
+    if (!node.classList.contains('cm-widgetBuffer')) return null;
+    node = node.nextElementSibling;
+  }
+
+  return null;
+}
+
+function syncInlineFootnoteTypography(el: HTMLElement) {
+  const ref = findInlineFootnoteTextSibling(el);
+  if (!ref) return;
+
+  const computed = activeWindow.getComputedStyle(ref);
+  el.style.fontSize = computed.fontSize;
+  el.style.lineHeight = computed.lineHeight;
+  el.style.fontWeight = computed.fontWeight;
+}
+
 class CiteWidget extends WidgetType {
   cite: RenderedCitation;
   sourcePath?: string;
   linkText?: string;
+  inInlineFootnote: boolean;
 
-  constructor(cite: RenderedCitation, sourcePath?: string, linkText?: string) {
+  constructor(
+    cite: RenderedCitation,
+    sourcePath?: string,
+    linkText?: string,
+    inInlineFootnote = false
+  ) {
     super();
     this.cite = cite;
     this.sourcePath = sourcePath;
     this.linkText = linkText;
+    this.inInlineFootnote = inInlineFootnote;
   }
 
   eq(widget: this): boolean {
-    return this.cite === widget.cite;
+    return (
+      this.cite === widget.cite &&
+      this.inInlineFootnote === widget.inInlineFootnote
+    );
   }
 
   toDOM() {
@@ -121,9 +166,14 @@ class CiteWidget extends WidgetType {
       attr['data-cite-locator'] = loc0.trim();
     }
 
+    const cls = ['pandoc-citation', 'is-resolved'];
+    if (this.inInlineFootnote) {
+      cls.push('is-in-inline-footnote', 'cm-footref', 'cm-inline-footnote');
+    }
+
     return createSpan(
       {
-        cls: 'pandoc-citation is-resolved',
+        cls: cls.join(' '),
         attr,
       },
       (span) => {
@@ -150,6 +200,12 @@ class CiteWidget extends WidgetType {
         } else {
           span.setText(this.cite.val);
         }
+
+        if (this.inInlineFootnote) {
+          activeWindow.requestAnimationFrame(() => {
+            syncInlineFootnoteTypography(span);
+          });
+        }
       }
     );
   }
@@ -162,10 +218,11 @@ class CiteWidget extends WidgetType {
 const citeDeco = (
   cite: RenderedCitation,
   sourcePath?: string,
-  linkText?: string
+  linkText?: string,
+  inInlineFootnote = false
 ) =>
   Decoration.replace({
-    widget: new CiteWidget(cite, sourcePath, linkText),
+    widget: new CiteWidget(cite, sourcePath, linkText, inInlineFootnote),
   });
 
 function onlyValType(segs: Segment[]) {
@@ -209,8 +266,6 @@ export const citeKeyPlugin = ViewPlugin.fromClass(
       // Don't get the syntax tree until we have to
       let tree: Tree;
 
-      const matched = new Set<RenderedCitation>();
-
       for (const { from, to } of view.visibleRanges) {
         const range = view.state.sliceDoc(from, to);
         const segments = getCitationSegments(
@@ -222,15 +277,9 @@ export const citeKeyPlugin = ViewPlugin.fromClass(
           if (!tree) tree = syntaxTree(view.state);
           const segMeta = getSegmentData(match);
           const citeLoc = segMeta.locator?.trim();
-          const rendered = citekeyCache?.citations.find(
-            (c) =>
-              !matched.has(c) &&
-              equal(onlyValType(c?.data || []), onlyValType(match))
+          const rendered = citekeyCache?.citations.find((c) =>
+            equal(onlyValType(c?.data || []), onlyValType(match))
           );
-
-          if (rendered) {
-            matched.add(rendered);
-          }
 
           if (isLivePreview) {
             if (rendered) {
@@ -250,21 +299,31 @@ export const citeKeyPlugin = ViewPlugin.fromClass(
                 linkText = view.state.sliceDoc(centerNode.from, centerNode.to);
               }
 
-              if (
-                view.state.selection.ranges.every((r) => {
-                  return (
-                    !(start >= r.from && end <= r.to) &&
-                    !(
-                      (r.from >= start && r.from <= end) ||
-                      (r.to >= start && r.to <= end)
-                    )
-                  );
-                })
-              ) {
+              const doc = view.state.doc.toString();
+              const insideInlineFootnote = citationInsideInlineFootnote(
+                doc,
+                tree,
+                start,
+                end
+              );
+
+              const selectionOnCitation = view.state.selection.ranges.some(
+                (r) =>
+                  (start >= r.from && end <= r.to) ||
+                  (r.from >= start && r.from <= end) ||
+                  (r.to >= start && r.to <= end)
+              );
+
+              if (!selectionOnCitation) {
                 b.add(
                   start,
                   end,
-                  citeDeco(rendered, obsView?.file.path, linkText)
+                  citeDeco(
+                    rendered,
+                    obsView?.file.path,
+                    linkText,
+                    insideInlineFootnote
+                  )
                 );
                 continue;
               }

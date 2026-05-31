@@ -150,6 +150,7 @@ Token API et groupe dans les réglages. **Import** des annotations Hypothesis ve
 
 **Autres idées**
 
+- **Insertion de citation (commande palette)** : recherche élégante sur la bibliographie déjà chargée (titre, auteur, clé), aperçu formaté citeproc, choix du format d’insertion (`[@clef]`, note inline `^[…]`, etc.) — **sans exiger Zotero installé** ; le flux BBT/CAYW reste un raccourci optionnel pour qui l’utilise déjà, pas une dépendance du plugin.
 - Recherche globale dans les annotations (tous documents ouverts récemment).
 - Export groupé des références d’une session de lecture.
 - Rappel de synchronisation Zotero avant export `.bib`.
