@@ -2,7 +2,7 @@
 
 <table>
 <tr>
-<td><img src="readme-media/logo_pandocite.jpg" alt="PandoCit" width="140" /></td>
+<td><img src="readme-media/logo_pandocite.png" alt="PandoCit" width="140" /></td>
 <td align="left">
 <h1 style="margin:0">PandoCit</h1>
 <p style="margin:0.25em 0 0"><strong>Citations Pandoc dans Obsidian</strong><br/>panneau latéral · bibliographie WASM · intégration Zotero</p>
